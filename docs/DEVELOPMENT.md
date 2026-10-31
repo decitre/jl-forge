@@ -33,7 +33,9 @@ This guide covers development setup, testing, building the demo site, and releas
 | `src/jl_forge/cli.py` | `jl-forge` command line and `reset_workspace` |
 | `tests/` | pytest suite, no network or micromamba needed |
 | `examples/demo/` | Demo project, notebook, `build.sh` and `smoke_test.py` |
+| `.github/workflows/test.yml` | Unit tests on Python 3.11–3.14; uploads coverage to Codecov |
 | `.github/workflows/build.yml` | Builds the demo; deploys it to GitHub Pages from `main` |
+| `codecov.yml` | Codecov status checks and pull request comments |
 | `.github/workflows/release.yml` | Manual PyPI release |
 
 ## Development Tasks
@@ -42,6 +44,18 @@ This guide covers development setup, testing, building the demo site, and releas
 
 ```bash
 uv run --group dev pytest
+```
+
+On every supported Python, as in CI; uv downloads missing interpreters, and `--isolated` leaves `.venv` alone:
+
+```bash
+for v in 3.11 3.12 3.13 3.14; do uv run --isolated --python $v --group dev pytest -q; done
+```
+
+With coverage, as in CI:
+
+```bash
+uv run --group dev pytest --cov --cov-report=term-missing
 ```
 
 `testpaths` is limited to `tests/`: the demo workspace contains conda packages whose own test files would otherwise be collected.
@@ -103,6 +117,12 @@ uv run --group browser pytest examples/demo/smoke_test.py -v
 It needs Google Chrome installed; Playwright drives it through its `chrome` channel, so `playwright install` isn't needed. It serves `workspace/public` itself on a free port, and skips when the demo isn't built. A full run takes about a minute; the first page of each site waits for the kernel download.
 
 The unit test run doesn't collect it (`testpaths = ["tests"]`).
+
+### Coverage on Codecov
+
+`test.yml` runs the unit tests on Python 3.11 to 3.14, one after the other in a single job, on every push to `main` and every pull request. It then uploads the Python 3.13 coverage report to [Codecov](https://codecov.io/gh/decitre/jl-forge). The upload needs a `CODECOV_TOKEN` repository secret, the upload token shown in the repository settings on codecov.io. Without it, the upload step fails the job.
+
+`codecov.yml` fails the project status when coverage on `main` drops by more than 1%; the patch status is off. The browser smoke test isn't part of the coverage: it runs the demo in a browser, not jl-forge's Python code.
 
 ### GitHub Pages Deployment
 

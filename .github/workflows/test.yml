@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Test on each supported Python
+        # uv installs each interpreter; --isolated gives each run its own temporary environment.
+        run: |
+          for version in 3.11 3.12 3.13 3.14; do
+            echo "::group::Python $version"
+            uv run --isolated --python "$version" --group dev pytest -v
+            echo "::endgroup::"
+          done
+      - name: Coverage
+        run: uv run --python 3.13 --group dev pytest --cov --cov-report=xml --cov-report=term-missing
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          files: ./coverage.xml
+          flags: python
+          disable_search: true
+          fail_ci_if_error: true
+          token: ${{ secrets.CODECOV_TOKEN }}

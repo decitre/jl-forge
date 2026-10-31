@@ -25,7 +25,7 @@ xeus = ["jupyterlite-xeus"]
 jl-forge = "jl_forge.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "bumpver>=2024"]
+dev = ["pytest>=8", "pytest-cov>=5", "bumpver>=2024"]
 browser = ["pytest>=8", "playwright>=1.50"]
 
 [project.urls]
@@ -43,6 +43,9 @@ include = ["/src", "/tests", "/LICENSE", "/NOTICE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
 
 [tool.bumpver]
 current_version = "0.1.0"

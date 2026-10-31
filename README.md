@@ -1,3 +1,5 @@
+[![Tests][tests-badge]][tests-url]
+[![py3.13 coverage][codecov-badge]][codecov-url]
 [![Build demo site][ci-badge]][ci-url]
 
 [![xeus-badge][xeus-badge]][xeus-url]
@@ -136,6 +138,10 @@ jl-forge builds on several open-source projects:
 
 ---
 
+[tests-badge]: https://github.com/decitre/jl-forge/actions/workflows/test.yml/badge.svg
+[tests-url]: https://github.com/decitre/jl-forge/actions/workflows/test.yml
+[codecov-badge]: https://img.shields.io/codecov/c/github/decitre/jl-forge/main?flag=python&label=py3.13%20cov&logo=codecov
+[codecov-url]: https://codecov.io/gh/decitre/jl-forge
 [ci-badge]: https://github.com/decitre/jl-forge/actions/workflows/build.yml/badge.svg
 [ci-url]: https://github.com/decitre/jl-forge/actions/workflows/build.yml
 [xeus-url]: https://decitre.github.io/jl-forge/xeus/lab/index.html?path=demo.ipynb
