@@ -7,7 +7,7 @@ name = "jl-forge"
 dynamic = ["version"]
 description = "Reusable tooling for building and publishing JupyterLite sites."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "decitre" }]
