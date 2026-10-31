@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "jl-forge"
+dynamic = ["version"]
+description = "Reusable tooling for building and publishing JupyterLite sites."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "decitre" }]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+]
+
+[project.urls]
+Homepage = "https://github.com/decitre/jl-forge"
+Issues = "https://github.com/decitre/jl-forge/issues"
+
+[tool.hatch.version]
+path = "src/jl_forge/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jl_forge"]
