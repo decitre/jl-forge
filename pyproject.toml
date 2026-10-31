@@ -9,13 +9,24 @@ description = "Reusable tooling for building and publishing JupyterLite sites."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "NOTICE"]
 authors = [{ name = "decitre" }]
 classifiers = [
   "Development Status :: 1 - Planning",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3 :: Only",
 ]
+dependencies = ["packaging>=24"]
+
+[project.optional-dependencies]
+xeus = ["jupyterlite-xeus"]
+
+[project.scripts]
+jl-forge = "jl_forge.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "bumpver>=2024"]
+browser = ["pytest>=8", "playwright>=1.50"]
 
 [project.urls]
 Homepage = "https://github.com/decitre/jl-forge"
@@ -26,3 +37,22 @@ path = "src/jl_forge/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jl_forge"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/LICENSE", "/NOTICE"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.bumpver]
+current_version = "0.1.0"
+version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
+commit_message = "bump version {old_version} -> {new_version}"
+commit = true
+tag = true
+push = true
+
+[tool.bumpver.file_patterns]
+"pyproject.toml" = ['^current_version = "{version}"']
+"src/jl_forge/__init__.py" = ['^__version__ = "{version}"']
+"README.md" = ['^Package version: `{version}`$']

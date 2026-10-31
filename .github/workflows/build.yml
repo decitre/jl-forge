@@ -1,0 +1,49 @@
+name: Build demo site
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: '3.11'
+      - name: Install micromamba
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "${RUNNER_TEMP}" bin/micromamba
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Build xeus-python and Pyodide sites
+        run: examples/demo/build.sh
+      - name: Browser smoke test
+        # Uses the runner's preinstalled Google Chrome; a failure blocks deployment.
+        run: uv run --group browser pytest examples/demo/smoke_test.py -v
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: examples/demo/workspace/public
+
+  deploy:
+    needs: build
+    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

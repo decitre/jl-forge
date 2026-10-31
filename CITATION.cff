@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use jl-forge in your work, please cite it using this metadata."
+type: software
+title: "jl-forge: Reusable build tooling for JupyterLite sites"
+authors:
+  - family-names: Decitre
+    given-names: Emmanuel
+repository-code: "https://github.com/decitre/jl-forge"
+url: "https://github.com/decitre/jl-forge"
+license: Apache-2.0
