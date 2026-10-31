@@ -1,3 +1,3 @@
-"""Reusable tooling for JupyterLite sites."""
+"""Build steps for JupyterLite sites."""
 
 __version__ = "0.1.0"

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "jl-forge"
 dynamic = ["version"]
-description = "Reusable tooling for building and publishing JupyterLite sites."
+description = "Build steps for JupyterLite sites with xeus-python and Pyodide kernels."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"

@@ -10,7 +10,7 @@
 
 Package version: `0.1.0`
 
-**Reusable build steps for JupyterLite sites** — turn a Python project and its notebooks into xeus-python and Pyodide sites, ready for GitHub Pages.
+**Build steps for JupyterLite sites** — turn a Python project and its notebooks into xeus-python and Pyodide sites, ready for GitHub Pages.
 
 
 ## Quick Start
@@ -122,7 +122,7 @@ Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE) for details.
 ```bibtex
 @software{jlforge2026,
   author = {Decitre, Emmanuel},
-  title = {jl-forge: Reusable build tooling for JupyterLite sites},
+  title = {jl-forge: Build tooling for JupyterLite sites},
   year = {2026},
   url = {https://github.com/decitre/jl-forge}
 }
