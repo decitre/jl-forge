@@ -146,6 +146,12 @@ The unit test run doesn't collect it (`testpaths = ["tests"]`).
 
 `build.yml` runs `examples/demo/build.sh` and the browser smoke test on pushes, pull requests, manual dispatch and every Monday, and uploads `workspace/public` as the Pages artifact. Only pushes to `main` and manual dispatch on `main` deploy. Its `build-0-8` job builds and smoke-tests the Pyodide 0.8.x site in parallel; it isn't deployed, and its failure doesn't block deployment.
 
+Pages must be enabled once with GitHub Actions as its source (Settings → Pages), or:
+
+```bash
+gh api -X POST repos/decitre/jl-forge/pages -f build_type=workflow
+```
+
 ### Upgrading Kernels, JupyterLite and Voici
 
 `build.sh` installs the latest `jupyterlite-core`, `jupyterlite-xeus` and `voici-core`, and `build-0.8.x.sh` the latest kernel 0.8.x, so the weekly run tests new upstream releases. The scripts cap the supported majors (`jupyterlite-xeus>=5,<6`, kernel `>=0.8,<0.9`): to adopt a new one, raise the cap on a branch and follow the same steps. When a release comes out, or the weekly run fails:
@@ -157,20 +163,14 @@ The unit test run doesn't collect it (`testpaths = ["tests"]`).
 
 When a `voici-core` release runs kernel 0.8+, move the demo's Pyodide site to it and drop kernel 0.7.0 from the [supported combinations](COMPATIBILITY.md#supported-combinations), in a minor release.
 
-Pages must be enabled once with GitHub Actions as its source (Settings → Pages), or:
-
-```bash
-gh api -X POST repos/decitre/jl-forge/pages -f build_type=workflow
-```
-
 ## Releasing
 
 1. Create a release branch from `main`, e.g. `git checkout -b release/0.2.0`.
-2. In `release-notes.md`, rename the `Unreleased` heading to the version, and commit.
+2. Check `release-notes.md`, a local untracked file holding the notes of the next release only, written as changes are made. Past notes live in the [GitHub releases](https://github.com/decitre/jl-forge/releases).
 3. Run `uv run --group dev bumpver update --set-version 0.2.0`. It updates the version in `pyproject.toml`, `src/jl_forge/__init__.py` and `README.md`, commits, tags `0.2.0`, and pushes the branch and the tag.
 4. Open a pull request; `build.yml` builds the demo and runs the browser smoke test.
 5. Merge with a merge commit, not a squash, so the tagged commit stays in `main`'s history.
-6. Publish a GitHub release for the tag, with the notes from `release-notes.md`. Publishing it, not saving a draft, starts the **Release** workflow: it builds and checks the distributions from the tag, then publishes to PyPI through trusted publishing. Publishing a version is irreversible. Without a GitHub release, run the workflow manually on `main` with `publish` checked; unchecked, it only builds and checks.
+6. Publish a GitHub release for the tag, with the content of `release-notes.md` as its notes, then empty the file for the next release. Publishing the release, not saving a draft, starts the **Release** workflow: it builds and checks the distributions from the tag, then publishes to PyPI through trusted publishing. Publishing a version is irreversible. Without a GitHub release, run the workflow manually on `main` with `publish` checked; unchecked, it only builds and checks.
 
 ## Troubleshooting
 
