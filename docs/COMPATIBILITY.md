@@ -51,7 +51,7 @@ Each `jupyterlite-pyodide-kernel` release loads one Pyodide release from jsDeliv
 
 ### Pyodide kernel 0.8's lock addon
 
-`jupyterlite-pyodide-kernel` 0.8 includes a lock addon, `PyodideLockAddon`, off by default (`--PyodideLockAddon.enabled=True`). It succeeds the standalone [jupyterlite-pyodide-lock](https://github.com/deathbeds/jupyterlite-pyodide-lock), whose last release is from January 2025. It solves `specs` (PEP 508, or requirements files) and local `wheels` with uv, through [pyodide-lock](https://github.com/pyodide/pyodide-lock), into a custom `pyodide-lock.json` that the kernel then loads from, prefetching the kernel's own packages at startup.
+`jupyterlite-pyodide-kernel` 0.8 includes a lock addon, `PyodideLockAddon`, off by default (`--PyodideLockAddon.enabled=True`). A similar addon is published standalone as [jupyterlite-pyodide-lock](https://github.com/deathbeds/jupyterlite-pyodide-lock). It solves `specs` (PEP 508, or requirements files) and local `wheels` with uv, through [pyodide-lock](https://github.com/pyodide/pyodide-lock), into a custom `pyodide-lock.json` that the kernel then loads from, prefetching the kernel's own packages at startup.
 
 It overlaps with `jl-forge pyodide-wheels`, which also turns requirements into wheels piplite installs from the site:
 

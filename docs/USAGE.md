@@ -5,11 +5,11 @@ This guide covers the `jl-forge` commands, the Python API behind them, and a com
 ## Installation
 
 ```bash
-pip install jl-forge          # CLI and Python API
-pip install 'jl-forge[xeus]'  # adds jupyterlite-xeus, for the default xeus-env mode
+pip install jl-forge jupyterlite-core jupyterlite-pyodide-kernel   # Pyodide site
+pip install 'jl-forge[xeus]' jupyterlite-core                      # xeus-python site (adds jupyterlite-xeus)
 ```
 
-`jupyter lite build` itself comes from `jupyterlite-core` plus a kernel package (`jupyterlite-xeus` or `jupyterlite-pyodide-kernel`), which your build installs. micromamba is required for xeus-python environments.
+Install jl-forge in the build environment, next to `jupyterlite-core` and the kernel, not with `pipx` or `uv tool`: `pyodide-dist` reads the Pyodide version from the installed kernel, and `xeus-env` and `xeus-pack-config` import jupyterlite-xeus and empack. In a uv project, `uv add --dev jl-forge` does it. Building both sites needs one environment per kernel; see [RUNTIME.md](RUNTIME.md). micromamba is required for xeus-python environments.
 
 ## Commands
 
