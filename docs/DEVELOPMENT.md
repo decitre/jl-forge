@@ -36,7 +36,7 @@ This guide covers development setup, testing, building the demo site, and releas
 | `.github/workflows/test.yml` | Unit tests on Python 3.11–3.14; uploads coverage to Codecov |
 | `.github/workflows/build.yml` | Builds the demo; deploys it to GitHub Pages from `main` |
 | `codecov.yml` | Codecov status checks and pull request comments |
-| `.github/workflows/release.yml` | Manual PyPI release |
+| `.github/workflows/release.yml` | PyPI release, on a published GitHub release or run manually |
 
 ## Development Tasks
 
@@ -148,7 +148,7 @@ gh api -X POST repos/decitre/jl-forge/pages -f build_type=workflow
 3. Run `uv run --group dev bumpver update --set-version 0.2.0`. It updates the version in `pyproject.toml`, `src/jl_forge/__init__.py` and `README.md`, commits, tags `0.2.0`, and pushes the branch and the tag.
 4. Open a pull request; `build.yml` builds the demo and runs the browser smoke test.
 5. Merge with a merge commit, not a squash, so the tagged commit stays in `main`'s history.
-6. Run the **Release** workflow manually from GitHub Actions on `main`. It builds and checks the distributions, and publishes to PyPI through trusted publishing only when `publish` is checked. Publishing a version is irreversible.
+6. Publish a GitHub release for the tag, with the notes from `release-notes.md`. Publishing it, not saving a draft, starts the **Release** workflow: it builds and checks the distributions from the tag, then publishes to PyPI through trusted publishing. Publishing a version is irreversible. Without a GitHub release, run the workflow manually on `main` with `publish` checked; unchecked, it only builds and checks.
 
 ## Troubleshooting
 

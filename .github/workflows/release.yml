@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  release:
+    types: [published]  # a draft release does not trigger this
   workflow_dispatch:
     inputs:
       publish:
@@ -42,7 +44,8 @@ jobs:
 
   publish:
     needs: build
-    if: ${{ inputs.publish && github.ref == 'refs/heads/main' }}
+    # a release run checks out its tag, not main
+    if: ${{ github.event_name == 'release' || (inputs.publish && github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-24.04
     environment:
       name: pypi
