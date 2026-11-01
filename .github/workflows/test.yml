@@ -2,7 +2,7 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: ['**']  # every branch, not tags
   pull_request:
   workflow_dispatch:
 

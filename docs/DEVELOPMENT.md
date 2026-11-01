@@ -127,7 +127,7 @@ The unit test run doesn't collect it (`testpaths = ["tests"]`).
 
 ### Coverage on Codecov
 
-`test.yml` runs the unit tests on Python 3.11 to 3.14, one after the other in a single job, on every push to `main` and every pull request. It then uploads the Python 3.13 coverage report to [Codecov](https://codecov.io/gh/decitre/jl-forge). The upload needs a `CODECOV_TOKEN` repository secret, the upload token shown in the repository settings on codecov.io. Without it, the upload step fails the job.
+`test.yml` runs the unit tests on Python 3.11 to 3.14, one after the other in a single job, on every push to a branch and every pull request. It then uploads the Python 3.13 coverage report to [Codecov](https://codecov.io/gh/decitre/jl-forge). The upload needs a `CODECOV_TOKEN` repository secret, the upload token shown in the repository settings on codecov.io. Without it, the upload step fails the job.
 
 `codecov.yml` fails the project status when coverage on `main` drops by more than 1%; the patch status is off. The browser smoke test isn't part of the coverage: it runs the demo in a browser, not jl-forge's Python code.
 
