@@ -2,7 +2,7 @@
 # Copyright 2026 Emmanuel Decitre
 # SPDX-License-Identifier: Apache-2.0
 #
-# Local check, not run in CI: build the demo's Pyodide site with the latest
+# Run by build.yml's build-0-8 job, and locally: build the demo's Pyodide site with the latest
 # jupyterlite-pyodide-kernel 0.8.x (Pyodide 314, Python 3.14) into
 # workspace-0.8.x/public/pyodide-latest. Lab and Notebook only: Voici needs kernel 0.7.0.
 # Test it with:

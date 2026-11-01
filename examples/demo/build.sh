@@ -28,7 +28,7 @@ uv run --no-project --with-editable "$REPO_DIR" jl-forge clean workspace
 mkdir -p "$WORKSPACE/content-xeus" "$WORKSPACE/content-pyodide"
 
 echo "== xeus-python site"
-venv "$WORKSPACE/venv-xeus" jupyterlite-xeus
+venv "$WORKSPACE/venv-xeus" "jupyterlite-xeus>=5,<6"  # the supported major; see docs/COMPATIBILITY.md
 PATH="$WORKSPACE/venv-xeus/bin:$PATH"
 cp notebooks/*.ipynb "$WORKSPACE/content-xeus/"
 jl-forge notebooks "$WORKSPACE/content-xeus" --strip

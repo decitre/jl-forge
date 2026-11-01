@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'  # weekly: build.sh installs the latest JupyterLite, xeus and Voici releases
 
 permissions:
   contents: read
@@ -29,8 +31,8 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/jl-forge
-          key: jl-forge-${{ hashFiles('examples/demo/pyproject.toml', 'examples/demo/build.sh') }}
-          restore-keys: jl-forge-
+          key: jl-forge-demo-${{ hashFiles('examples/demo/pyproject.toml', 'examples/demo/build.sh') }}
+          restore-keys: jl-forge-demo-
       - name: Build xeus-python and Pyodide sites
         run: examples/demo/build.sh
       - name: Browser smoke test
@@ -40,9 +42,32 @@ jobs:
         with:
           path: examples/demo/workspace/public
 
+  # Pyodide kernel 0.8.x (Python 3.14), Lab and Notebook; not deployed, and doesn't block deployment.
+  build-0-8:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: '3.11'
+      - name: Cache Pyodide downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/jl-forge
+          key: jl-forge-0.8.x-${{ hashFiles('examples/demo/pyproject.toml', 'examples/demo/build-0.8.x.sh') }}
+          restore-keys: jl-forge-0.8.x-
+      - name: Build Pyodide 0.8.x site
+        run: examples/demo/build-0.8.x.sh
+      - name: Browser smoke test
+        run: uv run --group browser pytest examples/demo/smoke_test.py -v
+        env:
+          JL_FORGE_PUBLIC: examples/demo/workspace-0.8.x/public
+
   deploy:
     needs: build
-    if: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/main' }}
+    # A scheduled run only checks upstream releases; it doesn't publish.
+    if: ${{ github.event_name != 'pull_request' && github.event_name != 'schedule' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-24.04
     permissions:
       pages: write

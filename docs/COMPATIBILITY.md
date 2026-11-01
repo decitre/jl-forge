@@ -4,6 +4,18 @@ Which JupyterLite apps work with which kernel, the package versions that make th
 
 Verified on 2026-10-31 by building [`examples/demo`](../examples/demo) and running its notebook in Chrome: kernel info, an ipywidgets button updating a label, and two `Output` widgets updated from the button callback. [`smoke_test.py`](../examples/demo/smoke_test.py) repeats these checks in CI on every build.
 
+## Supported Combinations
+
+A combination is supported when CI builds it and the [smoke test](../examples/demo/smoke_test.py) passes on it, on every push, pull request and weekly against the latest upstream releases. Each site is built in its own venv, so one jl-forge version builds all of them, and a project can mix them.
+
+| Site | Kernel | Apps | Python | CI |
+|:-----|:-------|:-----|:-------|:---|
+| xeus-python | `jupyterlite-xeus` 5.x | Lab, Notebook, Voici | 3.13 | `build.yml`, job `build` |
+| Pyodide for Voici | `jupyterlite-pyodide-kernel==0.7.0` | Lab, Notebook, Voici | 3.13 | `build.yml`, job `build` |
+| Pyodide, current | `jupyterlite-pyodide-kernel` 0.8.x | Lab, Notebook | 3.14 | `build.yml`, job `build-0-8` |
+
+Kernel 0.7.0 stays supported until a `voici-core` release runs kernel 0.8+ ([below](#voici-with-pyodide-needs-jupyterlite-pyodide-kernel070)). Voici then moves to 0.8.x, and dropping 0.7.0 is a minor release, listed in the release notes. Other combinations may work but aren't tested. How upgrades are tested: [DEVELOPMENT.md](DEVELOPMENT.md#upgrading-kernels-jupyterlite-and-voici).
+
 ## Support Matrix
 
 | App | xeus-python | Pyodide |
@@ -107,7 +119,7 @@ These affect the same notebooks run in desktop Jupyter (ipykernel), not JupyterL
 | Lab + Notebook + Voici on both kernels (the demo) | Both venvs with `voici-core`; Pyodide venv pins `jupyterlite-pyodide-kernel==0.7.0` and adds `jupyterlab_widgets~=3.0`. Python 3.13 everywhere. |
 | Python 3.14 in Pyodide | Pyodide venv without `voici-core`, `jupyterlite-pyodide-kernel` 0.8.x, `jupyterlab_widgets~=3.0`. No Voici on that site; keep Voici on the xeus site. |
 | Both of the above | Three sites: xeus (all apps), Pyodide 3.14 (lab, notebooks), Pyodide 3.13 (voici). Longer build, more URLs. |
-| No request to other hosts | `pyodide-dist` and `pyodide-wheels` for Pyodide sites, then `self-host` on all sites, as the demo does. Tested with kernel 0.7.0 (the demo) and 0.8.6 (Pyodide 314.0.6, Lab and Notebook, locally with `examples/demo/build-0.8.x.sh`; see [DEVELOPMENT.md](DEVELOPMENT.md#testing-the-latest-pyodide-kernel)). |
+| No request to other hosts | `pyodide-dist` and `pyodide-wheels` for Pyodide sites, then `self-host` on all sites, as the demo does. Tested in CI with kernel 0.7.0 (the demo) and 0.8.x (Lab and Notebook, with `examples/demo/build-0.8.x.sh`; see [DEVELOPMENT.md](DEVELOPMENT.md#testing-the-latest-pyodide-kernel)). |
 | Newest JupyterLite for Lab/Notebook | No `voici-core` in that venv: `jupyterlite-core` 0.8.x with `jupyterlite-xeus` 5.1 or `jupyterlite-pyodide-kernel` 0.8.x. |
 
 Each site is one `jupyter lite build` from its own venv, so these combine freely in one build script.
