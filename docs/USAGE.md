@@ -1,6 +1,6 @@
 # Usage Guide
 
-This guide covers the `jl-forge` commands, the Python API behind them, and a complete build script.
+This guide covers the `jl-forge` commands, the Python API behind them, what stays compatible across releases, and a complete build script.
 
 ## Installation
 
@@ -194,6 +194,19 @@ notebooks.write(Path("demo.ipynb"), nb)
 ```
 
 `jl_forge.cli.reset_workspace(workspace, root)` and `jl_forge.cli.site_urls(public, base_url)` are the functions behind `clean` and `urls`.
+
+## Compatibility Guarantees
+
+- **Commands** are the stable interface: command names, options, exit codes, and what they print to stdout, which build scripts capture (e.g. `$(jl-forge xeus-env ...)`).
+- **Public Python API** is only what the [Python API](#python-api) section shows:
+  - `dependencies.load_project`, `dependencies.collect_requirements`, `dependencies.to_specs`
+  - `notebooks.read`, `notebooks.write`, `notebooks.strip`, `notebooks.prepend_to_first_code_cell`
+  - `xeus.create_env`, `xeus.mount`, `xeus.XEUS_RUNTIME`
+  - `pyodide.INSTALL_LINE`
+  - `cli.reset_workspace`, `cli.site_urls`
+- **Everything else is internal**, including the `wheels`, `selfhost`, `cache` and `artifact` modules and the other functions of the modules above. It can change in any release.
+
+Before 1.0, a breaking change to the commands or the public API comes only in a minor release (0.x → 0.y) and is listed in the release notes. From 1.0, it needs a major release. Supported Python, kernel and app versions are in [COMPATIBILITY.md](COMPATIBILITY.md).
 
 ## Complete Build Script
 

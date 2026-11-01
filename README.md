@@ -120,7 +120,7 @@ AI-assisted contributions are welcome, provided contributors understand, review,
 ## Documentation
 
 - **[Getting Started](https://github.com/decitre/jl-forge/blob/main/docs/DEVELOPMENT.md)** - Development setup, testing, demo build and release
-- **[Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md)** - CLI reference, Python API and a complete build script
+- **[Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md)** - CLI reference, Python API, [compatibility guarantees](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md#compatibility-guarantees) and a complete build script
 - **[Apps, Kernels & Version Constraints](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md)** - Lab, Notebook and Voici on xeus-python and Pyodide: what works, pinned versions and why
 - **[Runtime & Integration](https://github.com/decitre/jl-forge/blob/main/docs/RUNTIME.md)** - What runs where, and integration boundaries
 
