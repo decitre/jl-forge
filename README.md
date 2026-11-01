@@ -14,7 +14,7 @@
 
 # jl-forge
 
-Package version: `0.2.0`
+Package version: `0.3.0`
 
 **Build steps for JupyterLite sites** — turn a Python project and its notebooks into version-matched, pruned and fully offline xeus-python and Pyodide sites, sized for GitHub or GitLab Pages.
 
