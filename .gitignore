@@ -7,3 +7,4 @@ build/
 examples/demo/workspace/
 coverage.xml
 .coverage
+.python-version

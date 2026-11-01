@@ -3,9 +3,13 @@
 
 """Create a xeus-python emscripten prefix, usable as ``--XeusAddon.prefix``."""
 
+import hashlib
+import json
+import os
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 XEUS_RUNTIME = ["xeus-python", "xeus-python-shell", "xeus-python-shell-lite"]
@@ -15,6 +19,16 @@ XEUS_CHANNELS = [
 ]
 ENV_NAME = "xeus-kernels"
 PLATFORM = "emscripten-wasm32"
+# Files empack packs by default that a browser kernel never uses, added to its default exclusions.
+# empack matches with fnmatch, where "*" also crosses "/".
+EMPACK_EXCLUDES = [
+    "lib/libpython*.a",  # static library; the kernel binary is already linked
+    "include/*",  # C headers
+    "*/tkinter/*",  # no Tk in a browser
+    "*/jedi/third_party/typeshed/stubs/*",  # stubs of non-stdlib packages; the stdlib stubs stay for completion
+    "*/jedi/third_party/django-stubs/*",
+    "*.dist-info/RECORD",  # installed-file lists, only used to uninstall
+]
 
 
 def env_prefix(root_prefix: Path, env_name: str = ENV_NAME) -> Path:
@@ -43,6 +57,39 @@ def create_env(
 
         create_conda_env_from_specs(env_name=env_name, root_prefix=root_prefix, specs=specs, channels=channels)
     return prefix
+
+
+def cached_env(cache_dir: Path, specs: list[str], channels: list[str] = XEUS_CHANNELS, **create_kwargs) -> Path:
+    """Environment for ``specs`` and ``channels``, created once under ``cache_dir`` and reused afterwards.
+
+    Each set of specs gets its own root prefix, keeping the usual environment name the site's paths
+    use; the downloaded packages are shared through ``<cache_dir>/pkgs``.
+    """
+    key = hashlib.sha256(json.dumps([PLATFORM, sorted(specs), list(channels)]).encode()).hexdigest()[:16]
+    root = Path(cache_dir) / key
+    complete = root / "complete"
+    if complete.exists():
+        print(f"Reusing {env_prefix(root)}", file=sys.stderr)
+        return env_prefix(root)
+    shutil.rmtree(root, ignore_errors=True)  # left by an interrupted creation
+    os.environ.setdefault("CONDA_PKGS_DIRS", str(Path(cache_dir) / "pkgs"))
+    prefix = create_env(root, specs, channels, **create_kwargs)
+    complete.touch()
+    return prefix
+
+
+def empack_config(out: Path) -> Path:
+    """Write empack's default config plus ``EMPACK_EXCLUDES`` to ``out``, for ``--XeusAddon.empack_config``."""
+    import yaml  # installed with jupyterlite-xeus, like empack
+    from empack.pack import DEFAULT_CONFIG_PATH
+
+    if DEFAULT_CONFIG_PATH is None:
+        raise RuntimeError("empack's default config not found; install jupyterlite-xeus in a virtual environment")
+    config = yaml.safe_load(Path(DEFAULT_CONFIG_PATH).read_text())
+    config.setdefault("default", {}).setdefault("exclude_patterns", []).extend({"pattern": p} for p in EMPACK_EXCLUDES)
+    out = Path(out)
+    out.write_text(json.dumps(config, indent=1) + "\n")  # JSON is valid YAML
+    return out.resolve()
 
 
 def micromamba_args(prefix: Path, root_prefix: Path, specs: list[str], channels: list[str]) -> list[str]:

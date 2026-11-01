@@ -15,6 +15,7 @@ import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 from playwright.sync_api import Page, sync_playwright
@@ -23,6 +24,8 @@ PUBLIC = Path(__file__).parent / "workspace" / "public"
 KERNEL_INFO = re.compile(r"(xeus-python|pyodide) on emscripten, Python 3\.\d+\.\d+")
 KERNEL_START_MS = 240_000  # first load downloads the kernel and its packages
 WIDGET_MS = 60_000
+# Everything is self-hosted: Pyodide (pyodide-dist), its PyPI packages (pyodide-wheels), the rest (self-host).
+OTHER_HOSTS = {"xeus": set(), "pyodide": set()}
 
 # (site, app page, kernel reported by the notebook, `with output:` capture works)
 PAGES = [
@@ -63,6 +66,8 @@ def page(browser):
     page = browser.new_page()
     errors = []
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    page.responses = []
+    page.on("response", lambda r: page.responses.append((r.url, r.status)))
     yield page
     page.close()
     if errors:
@@ -100,3 +105,9 @@ def test_demo_notebook(page, base_url, site, path, kernel, capture_works):
     else:
         page.wait_for_timeout(10_000)
         assert captured.count() == 0, "`with output:` capture now works here: update PAGES and docs/COMPATIBILITY.md"
+
+    # Self-hosted (jl-forge pyodide-dist and self-host): no other host, and no file missing from the site,
+    # which is how a package pruned from the Pyodide distribution would show up.
+    hosts = {urlparse(u).netloc for u, _ in page.responses if not u.startswith(base_url)}
+    assert hosts <= OTHER_HOSTS[site]
+    assert not [(u, status) for u, status in page.responses if u.startswith(base_url) and status >= 400]

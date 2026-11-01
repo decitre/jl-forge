@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/decitre/jl-forge/main/docs/logo.svg"
+       alt="jl-forge — build steps for JupyterLite sites"
+       width="600">
+</p>
+
 [![Tests][tests-badge]][tests-url]
 [![py3.13 coverage][codecov-badge]][codecov-url]
 [![Build demo site][ci-badge]][ci-url]
@@ -10,7 +16,7 @@
 
 Package version: `0.2.0`
 
-**Build steps for JupyterLite sites** — turn a Python project and its notebooks into xeus-python and Pyodide sites, ready for GitHub Pages.
+**Build steps for JupyterLite sites** — turn a Python project and its notebooks into version-matched, pruned and fully offline xeus-python and Pyodide sites, sized for GitHub or GitLab Pages.
 
 
 ## Quick Start
@@ -22,21 +28,28 @@ Package version: `0.2.0`
 **Basic usage**, from a project's own build script:
 
 ```sh
-jl-forge clean workspace                      # rm -rf, refused outside the cwd
-jl-forge notebooks workspace/content --strip  # clear code cell outputs
+jl-forge clean workspace                          # rm -rf, refused outside the cwd
+jl-forge notebooks workspace/content --strip      # clear code cell outputs
 
-# xeus-python kernel (needs micromamba)
-jl-forge xeus-env --micromamba --root-prefix workspace/xeus --pyproject pyproject.toml
-jupyter lite build --contents workspace/content \
-  --XeusAddon.prefix=workspace/xeus/envs/xeus-kernels \
-  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix workspace/xeus/envs/xeus-kernels)"
+# xeus-python site (needs micromamba): cached environment, packed without build-only files
+PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus --pyproject pyproject.toml)
+jupyter lite build --contents workspace/content --output-dir workspace/public/xeus \
+  --XeusAddon.prefix="$PREFIX" \
+  --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out workspace/empack.yml)" \
+  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$PREFIX")"
 
-# Pyodide kernel: install the project wheel via piplite
+# Pyodide site: project wheel via piplite, bundled wheels, self-hosted and pruned Pyodide
 jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel-dir workspace/content
 jl-forge notebooks workspace/content --pyodide-install
+jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite/pypi
+jupyter lite build --contents workspace/content --output-dir workspace/public/pyodide --lite-dir workspace/lite \
+  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide.tar.bz2)"
 
-# after jupyter lite build: serve command and notebook URLs
-jl-forge urls workspace/public
+# after the builds: no request to other hosts, shared files stored once, within Pages limits
+jl-forge self-host workspace/public
+jl-forge dedup workspace/public
+jl-forge size workspace/public --max 1G
+jl-forge urls workspace/public                    # serve command and notebook URLs
 ```
 
 ## Features
@@ -47,16 +60,36 @@ jl-forge urls workspace/public
 - **Notebook preparation**: strip outputs of code cells only; idempotent install line for Pyodide
 - **No hard-coded Python version**: xeus mount paths follow the Python installed in the prefix
 - **Voici dashboards**: demo and docs for both kernels; `jl-forge urls` lists the dashboard pages
+- **Self-hosting**: Pyodide pruned to the packages the site uses (`pyodide-dist`, 23 MB instead of 340 MB), the wheels piplite installs (`pyodide-wheels`), and the files xeus and Voici fetch from other hosts (`self-host`): no request leaves the site
+- **Pages size limits**: `dedup` hardlinks the files sites share, `size` fails the build above a limit
+- **Smaller, faster xeus builds**: environments packed without build-only files (half the size) and reused between builds
 - **Safe workspace reset**: `clean` refuses directories outside the project or that look like a project
 
 ## What is jl-forge?
 
-jl-forge is a small library and CLI extracted from the JupyterLite builds of several projects. It provides:
+jl-forge is a small library and CLI extracted from the JupyterLite builds of several projects. It automates the steps around `jupyter lite build` that JupyterLite's [offline guide](https://jupyterlite.readthedocs.io/en/latest/howto/configure/advanced/offline.html) leaves manual, and that each project used to script by hand:
 
-- The steps around `jupyter lite build` that each project used to script by hand
-- A Python API (`jl_forge.dependencies`, `notebooks`, `xeus`, `pyodide`) behind the CLI
+- **Version matching**: the self-hosted Pyodide is the release the installed kernel loads.
+- **Pruning**: Pyodide's 340 MB distribution cut to the packages the site uses, with their dependencies; xeus environments packed without build-only files.
+- **A complete wheel set**: the PyPI packages piplite would fetch, with their dependencies, bundled into the site.
+- **No external requests**: also the files xeus and Voici load from other hosts, which the guide doesn't mention; the demo's browser smoke test shows how to verify it.
+- **Both kernels side by side**, with cached xeus environments and size checks for GitHub or GitLab Pages.
+
+A Python API (`jl_forge.dependencies`, `notebooks`, `xeus`, `pyodide`, `wheels`, `selfhost`, `artifact`) sits behind the CLI.
 
 **jl-forge is not a replacement for JupyterLite's build system.** Your build script still calls `jupyter lite build`, chooses the apps, and handles application-specific assets.
+
+### Related projects
+
+| Project | Relation |
+|:--|:--|
+| [jupyterlite-core](https://github.com/jupyterlite/jupyterlite), [jupyterlite-pyodide-kernel](https://github.com/jupyterlite/pyodide-kernel), [jupyterlite-xeus](https://github.com/jupyterlite/xeus) | The build system and kernels jl-forge drives |
+| jupyterlite-pyodide-kernel's lock addon (0.8+) | Solves a custom `pyodide-lock.json` with uv; resolves better than `pyodide-wheels`, but doesn't prune or make the site offline, and Voici needs kernel 0.7.0; see [COMPATIBILITY.md](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md#pyodide-kernel-08s-lock-addon) |
+| [Voici](https://github.com/voila-dashboards/voici) | Dashboard app jl-forge's sites include |
+| [jupyterlite-sphinx](https://github.com/jupyterlite/jupyterlite-sphinx) | JupyterLite embedded in Sphinx documentation, for docs rather than standalone sites |
+| [Shinylive](https://github.com/posit-dev/py-shinylive), [marimo](https://github.com/marimo-team/marimo) | Static WebAssembly exports of their own app and notebook formats; Shinylive also prunes Pyodide |
+| [jupyterlite-pyodide-lock](https://github.com/deathbeds/jupyterlite-pyodide-lock), [repo2jupyterlite](https://pypi.org/project/repo2jupyterlite/) | Earlier tools for parts of this, without a release since January 2025 and 2022; the kernel's lock addon succeeds the first |
+| [pyodide-pack](https://github.com/pyodide/pyodide-pack) | Shrinks Pyodide apps by detecting the modules they use at run time, a finer cut than pruning whole packages; developed, but no PyPI release since 2022 |
 
 **Best suited for:** projects publishing a Python package with notebooks as a static JupyterLite site.
 
@@ -85,7 +118,6 @@ AI-assisted contributions are welcome, provided contributors understand, review,
 - **[Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md)** - CLI reference, Python API and a complete build script
 - **[Apps, Kernels & Version Constraints](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md)** - Lab, Notebook and Voici on xeus-python and Pyodide: what works, pinned versions and why
 - **[Runtime & Integration](https://github.com/decitre/jl-forge/blob/main/docs/RUNTIME.md)** - What runs where, and integration boundaries
-- **[Glossary](https://github.com/decitre/jl-forge/blob/main/docs/GLOSSARY.md)** - Key concepts and terminology
 
 ## Interactive Notebooks
 

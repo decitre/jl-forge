@@ -4,12 +4,16 @@
 """``jl-forge`` command line: build steps meant to be called from a project's build script."""
 
 import argparse
+import contextlib
+import os
 import shutil
 import sys
 from pathlib import Path
 from urllib.parse import quote
 
-from jl_forge import dependencies, notebooks, pyodide, xeus
+from packaging.utils import canonicalize_name
+
+from jl_forge import artifact, cache, dependencies, notebooks, pyodide, selfhost, wheels, xeus
 
 
 def reset_workspace(workspace: Path, root: Path) -> None:
@@ -24,11 +28,17 @@ def reset_workspace(workspace: Path, root: Path) -> None:
     workspace.mkdir(parents=True)
 
 
+def sites(public: Path) -> list[Path]:
+    """JupyterLite sites in ``public``: the directory itself or its subdirectories with a jupyter-lite.json."""
+    public = Path(public)
+    return sorted(d for d in [public, *public.iterdir()] if d.is_dir() and (d / "jupyter-lite.json").is_file())
+
+
 def site_urls(public: Path, base_url: str = "http://localhost:8000") -> list[str]:
     """URLs of each notebook in each JupyterLite site under ``public``, per app built."""
     public, base_url = Path(public), base_url.rstrip("/")
     urls = [f"{base_url}/"] if (public / "index.html").is_file() and not (public / "jupyter-lite.json").exists() else []
-    for site in sorted(d for d in [public, *public.iterdir()] if (d / "jupyter-lite.json").is_file()):
+    for site in sites(public):
         prefix = "/".join(filter(None, [base_url, site.relative_to(public).as_posix().strip(".")]))
         for nb in sorted((site / "files").rglob("*.ipynb")):
             path = nb.relative_to(site / "files").as_posix()
@@ -56,15 +66,38 @@ def _notebooks(args) -> None:
         print(f"Prepared: {path.name}")
 
 
+@contextlib.contextmanager
+def _stdout_to_stderr():
+    """Send stdout, including child processes', to stderr, keeping stdout for a result to capture."""
+    sys.stdout.flush()
+    saved = os.dup(1)
+    os.dup2(2, 1)
+    try:
+        yield
+    finally:
+        sys.stdout.flush()
+        os.dup2(saved, 1)
+        os.close(saved)
+
+
 def _xeus_env(args) -> None:
     project = dependencies.load_project(args.pyproject)
     reqs = dependencies.collect_requirements(
         project, args.extras, baseline=xeus.XEUS_RUNTIME, exclude=set(args.exclude)
     )
     specs = dependencies.to_specs(reqs)
-    print(specs)
-    prefix = xeus.create_env(args.root_prefix, specs, micromamba=args.micromamba, verbose=args.verbose)
-    print(prefix)
+    print(specs, file=sys.stderr)
+    options = dict(micromamba=args.micromamba, verbose=args.verbose)
+    with _stdout_to_stderr():  # micromamba and jupyterlite-xeus print to stdout
+        if args.cache_dir:
+            prefix = xeus.cached_env(args.cache_dir, specs, **options)
+        else:
+            prefix = xeus.create_env(args.root_prefix, specs, **options)
+    print(prefix.resolve())  # the only stdout line: pass it to --XeusAddon.prefix
+
+
+def _xeus_pack_config(args) -> None:
+    print(xeus.empack_config(args.out))
 
 
 def _xeus_mount(args) -> None:
@@ -78,6 +111,68 @@ def _pyodide_install(args) -> None:
     output = args.wheel_dir / "install.py"  # must sit next to the wheel for its emfs: URL to resolve
     output.write_text(pyodide.install_script(wheel.name, dependencies.to_specs(reqs)), encoding="utf-8")
     print(f"Generated {output}")
+
+
+def _pyodide_dist(args) -> None:
+    version = args.version or pyodide.kernel_pyodide_version()
+    tarball = pyodide.download(version, args.cache_dir)
+    out = args.out.resolve()
+    if args.no_prune:
+        shutil.copyfile(tarball, out)
+    else:
+        names = set(pyodide.KERNEL_PACKAGES) | set(args.keep)
+        if args.pyproject:
+            project = dependencies.load_project(args.pyproject)
+            names |= set(dependencies.collect_requirements(project, args.extras))
+        lock = pyodide.cached_lock(version, args.cache_dir)
+        kept, dropped = pyodide.prune(tarball, lock, pyodide.lock_closure(lock, names), out)
+        print(f"Pyodide {version}: kept {kept} packages, dropped {dropped}", file=sys.stderr)
+    print(out)  # the only stdout line: pass it to --pyodide
+
+
+def _self_host(args) -> None:
+    found = sites(args.public)
+    if not found:
+        raise ValueError(f"no JupyterLite site in {args.public}")
+    for site in found:
+        print("\n".join(selfhost.self_host(site, args.cache_dir)) or f"{site}: nothing fetched from other hosts")
+
+
+def _dedup(args) -> None:
+    linked, saved = artifact.dedup(args.public)
+    print(f"{args.public}: hardlinked {linked} identical files, {artifact.human(saved)} less on disk")
+
+
+def _size(args) -> None:
+    total, unique = artifact.size(args.public)
+    measured = unique if args.links_once else total
+    print(f"{args.public}: {artifact.human(total)}, {artifact.human(unique)} counting hardlinked files once")
+    if args.max is not None and measured > args.max:
+        raise ValueError(f"{artifact.human(measured)} exceeds the {artifact.human(args.max)} limit")
+
+
+def _pyodide_wheels(args) -> None:
+    version = args.version or pyodide.kernel_pyodide_version()
+    lock = pyodide.cached_lock(version, args.cache_dir / "pyodide")
+    provided = {canonicalize_name(name) for name in lock["packages"]} | wheels.kernel_index_names()
+    requirements = list(args.require)
+    if args.pyproject:
+        project = dependencies.load_project(args.pyproject)
+        requirements += dependencies.to_specs(dependencies.collect_requirements(project, args.extras))
+    bundled = wheels.bundle(
+        requirements,
+        provided,
+        args.out_dir,
+        args.cache_dir / "wheels",
+        lock["info"]["python"],
+        local_wheels=args.wheel,
+        strip={canonicalize_name(n) for n in args.strip_requires},
+        index=args.index_url,
+    )
+    print(
+        f"{args.out_dir}: {len(bundled)} wheels for Pyodide {version}: "
+        + (", ".join(w.name for w in bundled) or "none needed")
+    )
 
 
 def _urls(args) -> None:
@@ -110,11 +205,17 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(func=_notebooks)
 
     p = sub.add_parser("xeus-env", help="Create a xeus-python prefix from pyproject.toml dependencies")
-    p.add_argument(
+    where = p.add_mutually_exclusive_group(required=True)
+    where.add_argument(
         "--root-prefix",
         type=Path,
-        required=True,
         help=f"micromamba root; the environment is created in <ROOT_PREFIX>/envs/{xeus.ENV_NAME}",
+    )
+    where.add_argument(
+        "--cache-dir",
+        type=Path,
+        help="Create the environment once in this micromamba root, and reuse it while the "
+        "specs and channels stay the same",
     )
     p.add_argument("--pyproject", type=Path, required=True)
     p.add_argument("--extras", nargs="*", default=[])
@@ -124,6 +225,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("--verbose", action="store_true", help="Show micromamba solver output (-vvv); needs --micromamba")
     p.set_defaults(func=_xeus_env)
+
+    p = sub.add_parser(
+        "xeus-pack-config",
+        help="Write an empack config that also leaves out files a browser "
+        "kernel never uses, for --XeusAddon.empack_config",
+    )
+    p.add_argument("--out", type=Path, required=True, help="Output YAML; its absolute path is printed")
+    p.set_defaults(func=_xeus_pack_config)
 
     p = sub.add_parser("xeus-mount", help="Print a --XeusAddon.mounts value for a source package")
     p.add_argument("source", type=Path)
@@ -137,6 +246,87 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--extras", nargs="*", default=[])
     p.add_argument("--exclude", nargs="*", default=[], help="e.g. aiohttp, replaced by pyfetch in Pyodide")
     p.set_defaults(func=_pyodide_install)
+
+    p = sub.add_parser(
+        "pyodide-dist",
+        help="Self-host Pyodide: write the distribution the kernel loads, "
+        "pruned to the packages the site uses, for jupyter lite build --pyodide",
+    )
+    p.add_argument("--out", type=Path, required=True, help="Output .tar.bz2; its absolute path is printed")
+    p.add_argument("--pyproject", type=Path, help="Keep the project's dependencies the distribution provides")
+    p.add_argument("--extras", nargs="*", default=[])
+    p.add_argument("--keep", nargs="*", default=[], help="More distribution packages the notebooks import")
+    p.add_argument("--version", help="Pyodide release (default: the one the installed kernel loads)")
+    p.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=cache.DEFAULT_DIR / "pyodide",
+        help="Where full distributions are downloaded once (default: %(default)s)",
+    )
+    p.add_argument("--no-prune", action="store_true", help="Ship the full distribution (~430 MB)")
+    p.set_defaults(func=_pyodide_dist)
+
+    p = sub.add_parser(
+        "pyodide-wheels",
+        help="Bundle the wheels piplite would fetch from PyPI into the site; "
+        "run in the Pyodide build venv, write them to <lite-dir>/pypi",
+    )
+    p.add_argument("--out-dir", type=Path, required=True, help="Usually <lite-dir>/pypi, indexed by jupyter lite build")
+    p.add_argument("--pyproject", type=Path, help="Bundle the project's dependencies")
+    p.add_argument("--extras", nargs="*", default=[])
+    p.add_argument("--require", nargs="*", default=[], metavar="REQ", help="More requirements, e.g. 'ipyleaflet>=0.19'")
+    p.add_argument(
+        "--wheel",
+        nargs="*",
+        default=[],
+        type=Path,
+        metavar="PATH",
+        help="Local wheels to bundle, e.g. from a private index; their dependencies are followed",
+    )
+    p.add_argument(
+        "--strip-requires",
+        nargs="*",
+        default=[],
+        metavar="NAME",
+        help="Bundle these without their dependency metadata, so piplite installs them alone",
+    )
+    p.add_argument("--index-url", default=wheels.PYPI, help="JSON API base URL (default: %(default)s)")
+    p.add_argument("--version", help="Pyodide release (default: the one the installed kernel loads)")
+    p.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=cache.DEFAULT_DIR,
+        help="Where Pyodide releases and wheels are kept (default: %(default)s)",
+    )
+    p.set_defaults(func=_pyodide_wheels)
+
+    p = sub.add_parser(
+        "self-host",
+        help="Serve from the built sites the files they still fetch from other hosts (xeus name mapping, Font Awesome)",
+    )
+    p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")
+    p.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=cache.DEFAULT_DIR / "self-host",
+        help="Where downloads are kept between builds (default: %(default)s)",
+    )
+    p.set_defaults(func=_self_host)
+
+    p = sub.add_parser("dedup", help="Hardlink identical files in the built sites (run it last)")
+    p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")
+    p.set_defaults(func=_dedup)
+
+    p = sub.add_parser("size", help="Print the size of the built sites; fail above --max")
+    p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")
+    p.add_argument("--max", type=artifact.parse_size, help="Limit, e.g. 1G or 1000M (powers of 1024)")
+    p.add_argument(
+        "--links-once",
+        action="store_true",
+        help="Count hardlinked files once, as GitLab Pages' "
+        "archive stores them; GitHub Pages' uploader stores every copy in full",
+    )
+    p.set_defaults(func=_size)
 
     p = sub.add_parser("urls", help="Print the serve command and the URLs of each notebook in the built sites")
     p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")

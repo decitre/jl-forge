@@ -33,9 +33,16 @@ Rewrites every `DIR/*.ipynb` in place:
 jl-forge notebooks workspace/content --strip --pyodide-install
 ```
 
-### `jl-forge xeus-env --root-prefix DIR --pyproject FILE [options]`
+### `jl-forge xeus-env (--root-prefix DIR | --cache-dir DIR) --pyproject FILE [options]`
 
-Creates an emscripten-wasm32 conda environment at `DIR/envs/xeus-kernels`, for `--XeusAddon.prefix`. Packages are `xeus-python`, `xeus-python-shell`, `xeus-python-shell-lite` and the project's dependencies.
+Creates an emscripten-wasm32 conda environment for `--XeusAddon.prefix`, and prints its path as the only line on stdout. Packages are `xeus-python`, `xeus-python-shell`, `xeus-python-shell-lite` and the project's dependencies.
+
+- `--root-prefix DIR` creates it at `DIR/envs/xeus-kernels`, every time.
+- `--cache-dir DIR` creates it once and reuses it while the specs and channels stay the same, skipping the solve and download (minutes). Each set of specs gets its own `DIR/<hash>/envs/xeus-kernels`; downloaded packages are shared in `DIR/pkgs`. Unpinned specs aren't refreshed while cached: delete the directory to pick up new releases.
+
+```bash
+XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus --pyproject pyproject.toml)
+```
 
 | Option | Effect |
 |:-------|:-------|
@@ -45,6 +52,17 @@ Creates an emscripten-wasm32 conda environment at `DIR/envs/xeus-kernels`, for `
 | `--verbose` | Pass `-vvv` to micromamba (with `--micromamba`) |
 
 Channels are conda-forge and emscripten-forge-dev.
+
+### `jl-forge xeus-pack-config --out FILE`
+
+Writes empack's default packing config plus exclusions of files a browser kernel never uses, and prints the file's absolute path, for `--XeusAddon.empack_config`:
+
+- `lib/libpython*.a` and `include/`: the static library and C headers, for building, not running;
+- `tkinter`: there is no Tk in a browser;
+- jedi's type stubs of non-standard-library packages (typeshed `stubs/`, `django-stubs`); the standard library stubs stay for completion;
+- `*.dist-info/RECORD` files, only used to uninstall.
+
+It halves the packed environment of the demo (13 MB to 6.3 MB). Run it in the xeus build venv: it reads the default config of the installed empack.
 
 ### `jl-forge xeus-mount SOURCE --prefix PREFIX`
 
@@ -69,6 +87,70 @@ async def _():
 ```
 
 `DIR` must contain exactly one wheel for `NAME`, and `install.py` sits next to it so the `emfs:` URL resolves. `--extras` and `--exclude` work as for `xeus-env`; exclude packages Pyodide replaces, such as `aiohttp`.
+
+### `jl-forge pyodide-dist --out FILE [options]`
+
+Self-hosts Pyodide. By default the Pyodide kernel loads Pyodide and its packages from the jsDelivr CDN at run time, which fails where that CDN is blocked. This writes the distribution the installed kernel loads, pruned to the packages the site uses, and prints its absolute path for `jupyter lite build --pyodide`:
+
+```bash
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide-dist.tar.bz2)
+jupyter lite build ... --pyodide "$PYODIDE_DIST"
+```
+
+- **Version**: read from the installed `jupyterlite-pyodide-kernel` (`0.29.0` for kernel 0.7.0, `314.0.6` for 0.8.6), so the distribution always matches the kernel. Run it in the Pyodide build venv, or pass `--version`.
+- **Download**: the full release (about 340 MB) from GitHub, once, into `--cache-dir` (default `~/.cache/jl-forge/pyodide`).
+- **Kept packages**: the kernel's startup packages (IPython, matplotlib, micropip, ...), the project's dependencies from `--pyproject`/`--extras`, and `--keep NAME ...`, each with its dependencies from `pyodide-lock.json`. Everything else is left out; the demo's distribution is 23 MB instead of 340 MB. `--no-prune` ships the full release.
+- **Output**: a `.tar.bz2` with the upstream top-level `pyodide/` directory, the only form `--pyodide` copies into the site; pass its absolute path, which the command prints.
+
+A notebook that imports a distribution package nobody declared fails in the browser with a `ModuleNotFoundError` and a 404 for its wheel: add it to the project's dependencies or to `--keep`.
+
+### `jl-forge pyodide-wheels --out-dir DIR [options]`
+
+Bundles into the site the wheels piplite would otherwise fetch from PyPI in the browser. Run it in the Pyodide build venv, writing to `<lite-dir>/pypi`, which `jupyter lite build` indexes; piplite then installs them from the site:
+
+```bash
+jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyodide/pypi
+jupyter lite build --lite-dir workspace/lite-pyodide ...
+```
+
+- **What**: the requirements from `--pyproject`/`--extras` and `--require REQ ...`, and their dependencies, except packages the Pyodide distribution or the kernel's own index (piplite, its `ipykernel` and `widgetsnbextension` stand-ins) provides. Markers are evaluated for Pyodide's Python. For the demo: ipywidgets, jupyterlab_widgets and comm.
+- **Where from**: the newest pure-Python wheel matching each requirement, from PyPI's JSON API (`--index-url` for another index with the same API), cached in `--cache-dir` (default `~/.cache/jl-forge`). A package with no pure-Python wheel that the distribution lacks can't run in Pyodide: the command fails.
+- **Wheels from elsewhere**: `--wheel PATH ...` bundles local wheels, such as packages from a private index downloaded with pip, and follows their dependencies.
+- **`--strip-requires NAME ...`**: bundles those packages without their dependency metadata, so piplite installs them alone; for packages whose dependencies can't be satisfied in the browser.
+
+For a package required twice with different constraints, the first requirement decides its version.
+
+### `jl-forge self-host PUBLIC [--cache-dir DIR]`
+
+Makes the built sites in `PUBLIC` serve the files they still fetch from other hosts:
+
+- **xeus-python**: the conda-to-PyPI name mapping (`prefix-dev/parselmouth`, BSD-3-Clause, about 1 MB) that jupyterlite-xeus fetches at kernel start. Its URL is rewritten to a relative one, and the file placed next to every page and the kernel worker, which each resolve it against their own directory; `jl-forge dedup` then stores the copies once.
+- **Voici**: Font Awesome 5.15.4 (CC-BY-4.0, OFL-1.1 and MIT; CSS, `woff2`/`woff` fonts and `LICENSE.txt`), linked from Voici pages.
+
+Run it after `jupyter lite build` and before `dedup`; running it again changes nothing. The mapping copies are 1 MB each, stored once by `dedup` except on GitHub Pages. With `pyodide-dist` and `pyodide-wheels` too, the demo's pages make no request to other hosts.
+
+### `jl-forge dedup PUBLIC`
+
+Replaces files with identical content under `PUBLIC` by hardlinks to one copy. Two sites built side by side share most of their JupyterLab bundles and source maps, and `self-host` places copies of the mapping: in the demo, 1,104 files, 217 MB down to 138 MB on disk.
+
+Run it last: a later step editing a file in place would change all its linked copies.
+
+Where it helps depends on how the site is uploaded:
+
+| Host | Hardlinked files in the uploaded site |
+|:--|:--|
+| GitLab Pages | Stored once (GNU tar's default) |
+| GitHub Pages | Stored in full: `actions/upload-pages-artifact` archives with `--hard-dereference` |
+| Local disk, CI caches | Stored once |
+
+### `jl-forge size PUBLIC [--max SIZE] [--links-once]`
+
+Prints the size of `PUBLIC` counting every file in full, and counting hardlinked files once. With `--max` (e.g. `1G`, `1000M`; powers of 1024, as with `du`), it fails above the limit, measured in full, as GitHub Pages stores it, or with `--links-once` as GitLab Pages stores it:
+
+```bash
+jl-forge size workspace/public --max 1G                 # GitHub Pages
+jl-forge size workspace/public --max 1000M --links-once # GitLab Pages artifact limit
+```
 
 ### `jl-forge urls PUBLIC [--port PORT]`
 
@@ -122,18 +204,24 @@ jl-forge clean workspace
 
 # xeus-python, from a venv with jupyterlite-core + jupyterlite-xeus
 jl-forge notebooks workspace/content-xeus --strip
-jl-forge xeus-env --micromamba --root-prefix workspace/xeus-root --pyproject pyproject.toml
+XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus --pyproject pyproject.toml)
 jupyter lite build --contents "$PWD/workspace/content-xeus" --output-dir workspace/public/xeus \
-  --XeusAddon.prefix=workspace/xeus-root/envs/xeus-kernels \
+  --XeusAddon.prefix="$XEUS_PREFIX" \
+  --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out workspace/empack.yml)" \
   --XeusAddon.mount_jupyterlite_content=True \
-  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix workspace/xeus-root/envs/xeus-kernels)"
+  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$XEUS_PREFIX")"
 
 # Pyodide, from a venv with jupyterlite-core + jupyterlite-pyodide-kernel
 uv build --wheel --out-dir workspace/content-pyodide .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel-dir workspace/content-pyodide
 jl-forge notebooks workspace/content-pyodide --strip --pyodide-install
-jupyter lite build --contents "$PWD/workspace/content-pyodide" --output-dir workspace/public/pyodide
+jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyodide/pypi
+jupyter lite build --lite-dir workspace/lite-pyodide --contents "$PWD/workspace/content-pyodide" --output-dir workspace/public/pyodide \
+  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide-dist.tar.bz2)"
 
+jl-forge self-host workspace/public
+jl-forge dedup workspace/public
+jl-forge size workspace/public --max 1G
 jl-forge urls workspace/public
 ```
 

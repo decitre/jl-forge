@@ -102,7 +102,7 @@ The build ends by printing the serve command and the URL of the notebook in each
 2. **xeus-python**: creates `workspace/venv-xeus`, a conda prefix from the demo's `pyproject.toml`, and a site mounting `src/jl_forge_demo` into it.
 3. **Pyodide**: creates `workspace/venv-pyodide`, builds the demo wheel into the contents, generates `install.py`, and patches the notebook to call it.
 
-Both sites include the JupyterLab, Notebook, file browser and Voici apps. The demo notebook prints the kernel and Python version and exercises an ipywidgets round trip, including `Output` widgets.
+Both sites include the JupyterLab, Notebook, file browser and Voici apps. The xeus-python environment comes from `~/.cache/jl-forge/xeus` once created, and is packed with `xeus-pack-config`; the Pyodide site self-hosts a pruned Pyodide (`pyodide-dist`) and the wheels piplite installs (`pyodide-wheels`), and `self-host` serves the remaining external files from the sites. `dedup` then hardlinks the files the two sites share, and `size` fails the build above GitHub Pages' 1 GB limit. Set `JL_FORGE_CACHE` to use another cache directory; CI caches it between runs. The demo notebook prints the kernel and Python version and exercises an ipywidgets round trip, including `Output` widgets.
 
 Each kernel uses its own venv on purpose: `jupyter lite build` copies every installed labextension, so a shared venv would show both kernels in both sites.
 
@@ -183,6 +183,18 @@ The widget frontend is missing from the site. Install `jupyterlab_widgets` in th
 ### The demo reports "pyodide" in the xeus-python kernel?
 
 xeus-python on emscripten also provides a `pyodide` module. Detect xeus-python with `importlib.util.find_spec("pyjs")` instead.
+
+### `ModuleNotFoundError` in a Pyodide page, with a 404 for a `.whl` under `static/pyodide/`?
+
+`pyodide-dist` pruned a distribution package that a notebook imports without the project declaring it. Add it to the project's dependencies or pass `--keep NAME`, then rebuild.
+
+### `ModuleNotFoundError: No module named 'encodings'` in a Pyodide page?
+
+The self-hosted distribution lacks `python_stdlib.zip`, the standard library. `pyodide-dist` keeps it; a hand-pruned distribution may not.
+
+### A xeus build uses outdated packages?
+
+`xeus-env --cache-dir` reuses an environment while its specs don't change, so unpinned specs aren't refreshed. Delete `~/.cache/jl-forge/xeus` (or its `<hash>` directory) to recreate it.
 
 ### `expected one python3.*/site-packages` from `xeus-mount`?
 

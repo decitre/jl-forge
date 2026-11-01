@@ -22,9 +22,10 @@ Add `--apps tree` for the file browser and the Notebook app's *File → Open*, a
 | `jupyterlite-core` | 0.7.6 (capped by voici-core) | 0.7.6 (capped by voici-core) |
 | Kernel | `jupyterlite-xeus` 5.1.0; xeus-python 0.17.8, Python 3.13.1 (emscripten-forge-dev) | `jupyterlite-pyodide-kernel` 0.7.0 (Pyodide 0.29.0, Python 3.13.2) |
 | `voici-core` | 0.10.0 | 0.10.0 |
-| ipywidgets (kernel) | 8.1.9 from conda-forge | latest from PyPI, installed by piplite |
+| ipywidgets (kernel) | 8.1.9 from conda-forge | 8.1.9, bundled by `pyodide-wheels` and installed by piplite |
 | Widget frontend | `jupyterlab_widgets` 3.0.17, copied from the conda prefix | `jupyterlab_widgets` 3.0.17, from the build venv |
 | Voici widget manager | bundled `@jupyter-widgets/jupyterlab-manager` 5.0.11 | same |
+| Self-hosting | name mapping and Font Awesome by `self-host`; environment packed with `xeus-pack-config` | Pyodide 0.29.0 pruned to 27 packages by `pyodide-dist`; ipywidgets, jupyterlab_widgets and comm bundled by `pyodide-wheels`; Font Awesome by `self-host` |
 
 ## Constraints and Their Sources
 
@@ -46,7 +47,22 @@ Lift the pin once a voici-core release builds on a newer JupyterLite.
 
 Each `jupyterlite-pyodide-kernel` release loads one Pyodide release from jsDelivr: 0.7.0 loads Pyodide 0.29.0 (Python 3.13), 0.8.x loads Pyodide 314.0.x (Python 3.14). The Voici pin therefore keeps Pyodide sites on Python 3.13.
 
-`jupyter lite build --PyodideAddon.pyodide_url=<release tarball>` bundles another Pyodide release, provided the kernel package supports it.
+`jupyter lite build --pyodide <release tarball>` bundles a Pyodide release into the site instead of loading it from jsDelivr; it must be the release the kernel expects. `jl-forge pyodide-dist` reads that version from the kernel package's `PYODIDE_VERSION` constant, downloads it and prunes it (see [USAGE.md](USAGE.md#jl-forge-pyodide-dist---out-file-options)). Sites built with two kernel versions, such as a JupyterLab site on 0.8.x next to a Voici site on 0.7.0, need one distribution each, built in each site's venv.
+
+### Pyodide kernel 0.8's lock addon
+
+`jupyterlite-pyodide-kernel` 0.8 includes a lock addon, `PyodideLockAddon`, off by default (`--PyodideLockAddon.enabled=True`). It succeeds the standalone [jupyterlite-pyodide-lock](https://github.com/deathbeds/jupyterlite-pyodide-lock), whose last release is from January 2025. It solves `specs` (PEP 508, or requirements files) and local `wheels` with uv, through [pyodide-lock](https://github.com/pyodide/pyodide-lock), into a custom `pyodide-lock.json` that the kernel then loads from, prefetching the kernel's own packages at startup.
+
+It overlaps with `jl-forge pyodide-wheels`, which also turns requirements into wheels piplite installs from the site:
+
+| | Lock addon | `pyodide-wheels` |
+|:--|:--|:--|
+| Kernel versions | 0.8 and later | Any, including 0.7.0, the one Voici runs |
+| Dependency resolution | uv solve | Follows `Requires-Dist`; for a package required twice, the first requirement decides the version |
+| Offline | Packages it doesn't find locally resolve against Pyodide's jsDelivr URL, according to its source | Wheels copied into the site; nothing fetched at run time |
+| Pruning the distribution | No | With `pyodide-dist` |
+
+Use `pyodide-wheels` with kernel 0.7.x, and for sites that must not reach other hosts. With kernel 0.8 and network access, the lock addon resolves conflicting constraints better. Combining it with a `pyodide-dist` distribution is untested.
 
 ### xeus-python is on Python 3.13
 
@@ -59,7 +75,7 @@ The Python version is whatever the conda solve picks on the configured channels:
 ### Widget frontend in the JupyterLab and Notebook apps
 
 - **xeus-python**: `ipywidgets` in the project dependencies brings `jupyterlab_widgets` into the conda prefix, and `jupyterlite-xeus` copies its labextension into the site. Frontend and kernel versions match by construction.
-- **Pyodide**: piplite installs `ipywidgets` in the browser at run time, too late for the site build. Install `jupyterlab_widgets` in the build venv; without it, widgets don't render and the console shows `Exception opening new comm`. Keep it compatible with the kernel's ipywidgets: `ipywidgets` 8.1.x requires `jupyterlab_widgets~=3.0` ([PyPI](https://pypi.org/project/ipywidgets/)).
+- **Pyodide**: piplite installs `ipywidgets` in the browser at run time (from the site with `jl-forge pyodide-wheels`, else from PyPI), too late for the site build to see its frontend. Install `jupyterlab_widgets` in the build venv; without it, widgets don't render and the console shows `Exception opening new comm`. Keep it compatible with the kernel's ipywidgets: `ipywidgets` 8.1.x requires `jupyterlab_widgets~=3.0` ([PyPI](https://pypi.org/project/ipywidgets/)).
 - **Voici** bundles its own widget manager (`@jupyter-widgets/jupyterlab-manager` 5.0.11, ipywidgets 8 protocol) in both kernels.
 
 ### `Output` capture in Voici with xeus-python
@@ -91,6 +107,7 @@ These affect the same notebooks run in desktop Jupyter (ipykernel), not JupyterL
 | Lab + Notebook + Voici on both kernels (the demo) | Both venvs with `voici-core`; Pyodide venv pins `jupyterlite-pyodide-kernel==0.7.0` and adds `jupyterlab_widgets~=3.0`. Python 3.13 everywhere. |
 | Python 3.14 in Pyodide | Pyodide venv without `voici-core`, `jupyterlite-pyodide-kernel` 0.8.x, `jupyterlab_widgets~=3.0`. No Voici on that site; keep Voici on the xeus site. |
 | Both of the above | Three sites: xeus (all apps), Pyodide 3.14 (lab, notebooks), Pyodide 3.13 (voici). Longer build, more URLs. |
+| No request to other hosts | `pyodide-dist` and `pyodide-wheels` for Pyodide sites, then `self-host` on all sites, as the demo does. Tested with kernel 0.7.0; 0.8.x untested. |
 | Newest JupyterLite for Lab/Notebook | No `voici-core` in that venv: `jupyterlite-core` 0.8.x with `jupyterlite-xeus` 5.1 or `jupyterlite-pyodide-kernel` 0.8.x. |
 
 Each site is one `jupyter lite build` from its own venv, so these combine freely in one build script.

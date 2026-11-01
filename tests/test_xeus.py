@@ -70,3 +70,43 @@ def test_mount_uses_installed_python(tmp_path):
     (prefix / "lib" / "python3.12" / "site-packages").mkdir(parents=True)
     with pytest.raises(ValueError, match="expected one"):
         xeus.site_packages(prefix)
+
+
+def test_cached_env_is_created_once(monkeypatch, tmp_path):
+    created = []
+
+    def fake_create(root, specs, channels, **kwargs):
+        created.append(root)
+        prefix = xeus.env_prefix(root)
+        prefix.mkdir(parents=True)
+        return prefix
+
+    monkeypatch.setattr(xeus, "create_env", fake_create)
+    monkeypatch.delenv("CONDA_PKGS_DIRS", raising=False)
+    first = xeus.cached_env(tmp_path, ["b", "a"])
+    assert xeus.cached_env(tmp_path, ["a", "b"]) == first  # same specs in another order: reused
+    assert first.name == xeus.ENV_NAME and len(created) == 1
+    assert xeus.cached_env(tmp_path, ["a", "c"]) != first and len(created) == 2
+    assert xeus.os.environ["CONDA_PKGS_DIRS"] == str(tmp_path / "pkgs")
+
+
+def test_cached_env_replaces_an_interrupted_creation(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        xeus, "create_env", lambda root, *a, **k: xeus.env_prefix(root).mkdir(parents=True) or xeus.env_prefix(root)
+    )
+    prefix = xeus.cached_env(tmp_path, ["a"])
+    (prefix.parent.parent / "complete").unlink()
+    (prefix / "partial").touch()
+    assert not (xeus.cached_env(tmp_path, ["a"]) / "partial").exists()
+
+
+def test_empack_config_adds_exclusions(monkeypatch, tmp_path):
+    default = tmp_path / "default.yaml"
+    default.write_text('{"default": {"exclude_patterns": [{"pattern": "bin/*"}]}, "packages": {"numpy": {}}}')
+    monkeypatch.setitem(sys.modules, "yaml", types.SimpleNamespace(safe_load=__import__("json").loads))
+    monkeypatch.setitem(sys.modules, "empack", types.ModuleType("empack"))
+    monkeypatch.setitem(sys.modules, "empack.pack", types.SimpleNamespace(DEFAULT_CONFIG_PATH=str(default)))
+    out = xeus.empack_config(tmp_path / "empack.yml")
+    config = __import__("json").loads(out.read_text())
+    patterns = [p["pattern"] for p in config["default"]["exclude_patterns"]]
+    assert patterns == ["bin/*", *xeus.EMPACK_EXCLUDES] and config["packages"] == {"numpy": {}}

@@ -25,6 +25,12 @@ jobs:
         run: |
           curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "${RUNNER_TEMP}" bin/micromamba
           echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Cache xeus environments and Pyodide downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/jl-forge
+          key: jl-forge-${{ hashFiles('examples/demo/pyproject.toml', 'examples/demo/build.sh') }}
+          restore-keys: jl-forge-
       - name: Build xeus-python and Pyodide sites
         run: examples/demo/build.sh
       - name: Browser smoke test

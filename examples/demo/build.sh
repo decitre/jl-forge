@@ -12,7 +12,8 @@ DEMO_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 REPO_DIR=$(cd "$DEMO_DIR/../.." && pwd -P)
 WORKSPACE="$DEMO_DIR/workspace"
 PUBLIC="$WORKSPACE/public"
-XEUS_PREFIX="$WORKSPACE/xeus-root/envs/xeus-kernels"
+# Kept between builds (CI caches it): xeus environments and Pyodide/self-hosted downloads.
+CACHE="${JL_FORGE_CACHE:-$HOME/.cache/jl-forge}"
 # Listing --apps replaces the defaults; voici needs voici-core in the build venv.
 APPS=(--apps lab --apps notebooks --apps tree --apps voici)
 
@@ -31,10 +32,12 @@ venv "$WORKSPACE/venv-xeus" jupyterlite-xeus
 PATH="$WORKSPACE/venv-xeus/bin:$PATH"
 cp notebooks/*.ipynb "$WORKSPACE/content-xeus/"
 jl-forge notebooks "$WORKSPACE/content-xeus" --strip
-jl-forge xeus-env --micromamba --root-prefix "$WORKSPACE/xeus-root" --pyproject pyproject.toml
+XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir "$CACHE/xeus" --pyproject pyproject.toml)
 mounts=$(jl-forge xeus-mount src/jl_forge_demo --prefix "$XEUS_PREFIX")
+EMPACK_CONFIG=$(jl-forge xeus-pack-config --out "$WORKSPACE/empack.yml")
 (cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-xeus" --output-dir "$PUBLIC/xeus" --lite-dir lite-xeus \
   --XeusAddon.prefix="$XEUS_PREFIX" \
+  --XeusAddon.empack_config="$EMPACK_CONFIG" \
   --XeusAddon.mount_jupyterlite_content=True \
   --XeusAddon.mounts="$mounts")
 
@@ -49,7 +52,13 @@ cp notebooks/*.ipynb "$WORKSPACE/content-pyodide/"
 uv build --wheel --out-dir "$WORKSPACE/content-pyodide" .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name jl-forge-demo --wheel-dir "$WORKSPACE/content-pyodide"
 jl-forge notebooks "$WORKSPACE/content-pyodide" --strip --pyodide-install
-(cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-pyodide" --output-dir "$PUBLIC/pyodide" --lite-dir lite-pyodide)
+# Bundle the wheels piplite would fetch from PyPI (ipywidgets and its dependencies); jupyter lite build
+# indexes <lite-dir>/pypi into the site.
+jl-forge pyodide-wheels --pyproject pyproject.toml --cache-dir "$CACHE" --out-dir "$WORKSPACE/lite-pyodide/pypi"
+# Self-host Pyodide: the distribution the kernel loads, pruned to the packages the site uses.
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
+(cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-pyodide" --output-dir "$PUBLIC/pyodide" --lite-dir lite-pyodide \
+  --pyodide "$PYODIDE_DIST")
 
 cat > "$PUBLIC/index.html" <<'HTML'
 <!doctype html>
@@ -64,5 +73,12 @@ cat > "$PUBLIC/index.html" <<'HTML'
 </ul>
 HTML
 touch "$PUBLIC/.nojekyll"
+
+# Serve what the sites still fetch from other hosts (xeus name mapping, Font Awesome) from the sites.
+jl-forge self-host "$PUBLIC" --cache-dir "$CACHE/self-host"
+# Hardlink the files both sites share: smaller on disk, and in GitLab Pages artifacts. GitHub's Pages
+# uploader stores every copy in full, so the limit below counts them all.
+jl-forge dedup "$PUBLIC"
+jl-forge size "$PUBLIC" --max 1G
 
 jl-forge urls "$PUBLIC"
