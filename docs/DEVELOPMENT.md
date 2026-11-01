@@ -32,7 +32,7 @@ This guide covers development setup, testing, building the demo site, and releas
 | `src/jl_forge/pyodide.py` | Find the project wheel, generate `install.py` |
 | `src/jl_forge/cli.py` | `jl-forge` command line and `reset_workspace` |
 | `tests/` | pytest suite, no network or micromamba needed |
-| `examples/demo/` | Demo project, notebook, `build.sh` and `smoke_test.py` |
+| `examples/demo/` | Demo project, notebook, `build.sh`, `build-0.8.x.sh` (local check of the latest Pyodide kernel) and `smoke_test.py` |
 | `.github/workflows/test.yml` | Unit tests on Python 3.11–3.14; uploads coverage to Codecov |
 | `.github/workflows/build.yml` | Builds the demo; deploys it to GitHub Pages from `main` |
 | `codecov.yml` | Codecov status checks and pull request comments |
@@ -122,6 +122,17 @@ uv run --group browser pytest examples/demo/smoke_test.py -v
 ```
 
 It needs Google Chrome installed; Playwright drives it through its `chrome` channel, so `playwright install` isn't needed. It serves `workspace/public` itself on a free port, and skips when the demo isn't built. A full run takes about a minute; the first page of each site waits for the kernel download.
+
+### Testing the Latest Pyodide Kernel
+
+The demo pins `jupyterlite-pyodide-kernel==0.7.0` for Voici. `examples/demo/build-0.8.x.sh` builds the same Pyodide site with the latest 0.8.x kernel (Pyodide 314, Python 3.14), Lab and Notebook only, into `examples/demo/workspace-0.8.x/`. It runs locally only, not in CI:
+
+```bash
+examples/demo/build-0.8.x.sh
+JL_FORGE_PUBLIC=examples/demo/workspace-0.8.x/public uv run --group browser pytest examples/demo/smoke_test.py -v
+```
+
+`JL_FORGE_PUBLIC` points the smoke test at another build; it runs only the pages of the sites that build contains.
 
 The unit test run doesn't collect it (`testpaths = ["tests"]`).
 

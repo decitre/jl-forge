@@ -107,7 +107,7 @@ These affect the same notebooks run in desktop Jupyter (ipykernel), not JupyterL
 | Lab + Notebook + Voici on both kernels (the demo) | Both venvs with `voici-core`; Pyodide venv pins `jupyterlite-pyodide-kernel==0.7.0` and adds `jupyterlab_widgets~=3.0`. Python 3.13 everywhere. |
 | Python 3.14 in Pyodide | Pyodide venv without `voici-core`, `jupyterlite-pyodide-kernel` 0.8.x, `jupyterlab_widgets~=3.0`. No Voici on that site; keep Voici on the xeus site. |
 | Both of the above | Three sites: xeus (all apps), Pyodide 3.14 (lab, notebooks), Pyodide 3.13 (voici). Longer build, more URLs. |
-| No request to other hosts | `pyodide-dist` and `pyodide-wheels` for Pyodide sites, then `self-host` on all sites, as the demo does. Tested with kernel 0.7.0; 0.8.x untested. |
+| No request to other hosts | `pyodide-dist` and `pyodide-wheels` for Pyodide sites, then `self-host` on all sites, as the demo does. Tested with kernel 0.7.0 (the demo) and 0.8.6 (Pyodide 314.0.6, Lab and Notebook, locally with `examples/demo/build-0.8.x.sh`; see [DEVELOPMENT.md](DEVELOPMENT.md#testing-the-latest-pyodide-kernel)). |
 | Newest JupyterLite for Lab/Notebook | No `voici-core` in that venv: `jupyterlite-core` 0.8.x with `jupyterlite-xeus` 5.1 or `jupyterlite-pyodide-kernel` 0.8.x. |
 
 Each site is one `jupyter lite build` from its own venv, so these combine freely in one build script.

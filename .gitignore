@@ -5,6 +5,7 @@ __pycache__/
 dist/
 build/
 examples/demo/workspace/
+examples/demo/workspace-0.8.x/
 coverage.xml
 .coverage
 .python-version

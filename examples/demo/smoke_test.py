@@ -7,9 +7,11 @@ Run after build.sh, from the repository root:
 
     uv run --group browser pytest examples/demo/smoke_test.py
 
-Needs Google Chrome installed (Playwright's "chrome" channel).
+Needs Google Chrome installed (Playwright's "chrome" channel). Set JL_FORGE_PUBLIC to test another build,
+such as build-0.8.x.sh's; only the pages of sites present in it run.
 """
 
+import os
 import re
 import threading
 from functools import partial
@@ -20,12 +22,12 @@ from urllib.parse import urlparse
 import pytest
 from playwright.sync_api import Page, sync_playwright
 
-PUBLIC = Path(__file__).parent / "workspace" / "public"
+PUBLIC = Path(os.environ.get("JL_FORGE_PUBLIC", Path(__file__).parent / "workspace" / "public"))
 KERNEL_INFO = re.compile(r"(xeus-python|pyodide) on emscripten, Python 3\.\d+\.\d+")
 KERNEL_START_MS = 240_000  # first load downloads the kernel and its packages
 WIDGET_MS = 60_000
 # Everything is self-hosted: Pyodide (pyodide-dist), its PyPI packages (pyodide-wheels), the rest (self-host).
-OTHER_HOSTS = {"xeus": set(), "pyodide": set()}
+OTHER_HOSTS = {"xeus": set(), "pyodide": set(), "pyodide-latest": set()}
 
 # (site, app page, kernel reported by the notebook, `with output:` capture works)
 PAGES = [
@@ -35,7 +37,11 @@ PAGES = [
     ("pyodide", "lab/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "voici/render/demo.html", "pyodide", True),
+    # build-0.8.x.sh, local only: kernel 0.8.x, no Voici
+    ("pyodide-latest", "lab/index.html?path=demo.ipynb", "pyodide", True),
+    ("pyodide-latest", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
 ]
+PAGES = [page for page in PAGES if (PUBLIC / page[0]).is_dir()]
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
