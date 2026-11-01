@@ -82,11 +82,17 @@ Writes `DIR/install.py`, which installs the project wheel and its dependencies w
 ```python
 import piplite
 async def _():
-  packages = ['emfs:mypkg-0.1.0-py3-none-any.whl', 'packaging>=23']
-  await piplite.install(packages, keep_going=True)
+  emfs_wheels = ['emfs:mypkg-0.1.0-py3-none-any.whl', 'emfs:dep_a-1.0-py3-none-any.whl']
+  for wheel in emfs_wheels:
+    await piplite.install(wheel, deps=False, keep_going=True)
+  packages = ['packaging>=23']
+  if packages:
+    await piplite.install(packages, keep_going=True)
 ```
 
 `DIR` must contain exactly one wheel for `NAME`, and `install.py` sits next to it so the `emfs:` URL resolves. `--extras` and `--exclude` work as for `xeus-env`; exclude packages Pyodide replaces, such as `aiohttp`.
+
+The wheels install with `deps=False`: their dependencies come by name from `--pyproject`, so the wheel must be built from that same project. `--bundled-wheel FILE` (repeatable, `dep_a` above) adds a wheel already in `DIR`, such as a private dependency not on the piplite index; it drops out of the by-name list.
 
 ### `jl-forge pyodide-dist --out FILE [options]`
 

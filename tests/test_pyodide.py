@@ -37,7 +37,26 @@ def test_cli_writes_executable_install_script(tmp_path):
     )
     src = (tmp_path / "install.py").read_text()
     compile(src, "install.py", "exec")
-    assert "packages = ['emfs:my_pkg-1.0-py3-none-any.whl', 'tqdm>=4']" in src
+    assert "emfs_wheels = ['emfs:my_pkg-1.0-py3-none-any.whl']" in src
+    assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
+    assert "packages = ['tqdm>=4']" in src
+
+
+def test_cli_bundled_wheels_install_without_deps(tmp_path):
+    (tmp_path / "pyproject.toml").write_text('[project]\ndependencies = ["dep-a>=1", "Dep_B", "orjson"]\n')
+    for name in ("my_pkg-1.0", "dep_a-1.0", "dep_b-2.0"):
+        (tmp_path / f"{name}-py3-none-any.whl").touch()
+    args = ["pyodide-install", "--pyproject", str(tmp_path / "pyproject.toml"), "--package-name", "my-pkg"]
+    args += ["--wheel-dir", str(tmp_path), "--bundled-wheel", "dep_a-1.0-py3-none-any.whl"]
+    main([*args, "--bundled-wheel", str(tmp_path / "dep_b-2.0-py3-none-any.whl")])
+    src = (tmp_path / "install.py").read_text()
+    compile(src, "install.py", "exec")
+    wheels = ", ".join(f"'emfs:{n}-py3-none-any.whl'" for n in ("my_pkg-1.0", "dep_a-1.0", "dep_b-2.0"))
+    assert f"emfs_wheels = [{wheels}]" in src
+    assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
+    assert "packages = ['orjson']" in src
+    with pytest.raises(SystemExit, match="missing.whl"):
+        main([*args, "--bundled-wheel", "missing.whl"])
 
 
 LOCK = {

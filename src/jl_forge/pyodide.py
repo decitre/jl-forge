@@ -32,14 +32,22 @@ def find_wheel(wheel_dir: Path, package_name: str) -> Path:
     return wheels[0]
 
 
-def install_script(wheel_name: str, packages: list[str]) -> str:
-    """Source of an ``install.py`` that sits next to the wheel in the site contents."""
-    pkg_list = ", ".join(repr(p) for p in [f"emfs:{wheel_name}", *packages])
+def install_script(wheel_name: str, packages: list[str], bundled_wheels: list[str] = ()) -> str:
+    """Source of an ``install.py`` that sits next to the wheels in the site contents.
+
+    The project wheel and ``bundled_wheels`` install with ``deps=False``: their dependencies come by
+    name in ``packages``, so ``--exclude`` holds and wheel metadata isn't resolved again.
+    """
+    wheels = ", ".join(repr(f"emfs:{w}") for w in [wheel_name, *bundled_wheels])
     return (
         "import piplite\n"
         "async def _():\n"
-        f"  packages = [{pkg_list}]\n"
-        "  await piplite.install(packages, keep_going=True)\n"
+        f"  emfs_wheels = [{wheels}]\n"
+        "  for wheel in emfs_wheels:\n"
+        "    await piplite.install(wheel, deps=False, keep_going=True)\n"
+        f"  packages = [{', '.join(repr(p) for p in packages)}]\n"
+        "  if packages:\n"
+        "    await piplite.install(packages, keep_going=True)\n"
     )
 
 

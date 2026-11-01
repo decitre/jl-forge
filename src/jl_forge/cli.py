@@ -106,10 +106,15 @@ def _xeus_mount(args) -> None:
 
 def _pyodide_install(args) -> None:
     project = dependencies.load_project(args.pyproject)
-    reqs = dependencies.collect_requirements(project, args.extras, exclude=set(args.exclude))
+    bundled = [Path(w).name for w in args.bundled_wheel]
+    missing = [w for w in bundled if not (args.wheel_dir / w).is_file()]
+    if missing:  # emfs: URLs resolve next to install.py
+        raise SystemExit(f"bundled wheels not in {args.wheel_dir}: {', '.join(missing)}")
+    exclude = {*args.exclude, *(w.split("-", 1)[0] for w in bundled)}
+    reqs = dependencies.collect_requirements(project, args.extras, exclude=exclude)
     wheel = pyodide.find_wheel(args.wheel_dir, args.package_name)
     output = args.wheel_dir / "install.py"  # must sit next to the wheel for its emfs: URL to resolve
-    output.write_text(pyodide.install_script(wheel.name, dependencies.to_specs(reqs)), encoding="utf-8")
+    output.write_text(pyodide.install_script(wheel.name, dependencies.to_specs(reqs), bundled), encoding="utf-8")
     print(f"Generated {output}")
 
 
@@ -245,6 +250,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--wheel-dir", type=Path, required=True)
     p.add_argument("--extras", nargs="*", default=[])
     p.add_argument("--exclude", nargs="*", default=[], help="e.g. aiohttp, replaced by pyfetch in Pyodide")
+    p.add_argument(
+        "--bundled-wheel",
+        action="append",
+        default=[],
+        help="Extra wheel in --wheel-dir to install as emfs: with deps=False (repeatable)",
+    )
     p.set_defaults(func=_pyodide_install)
 
     p = sub.add_parser(
