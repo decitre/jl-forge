@@ -5,7 +5,13 @@ def _nb():
     return {
         "cells": [
             {"cell_type": "markdown", "metadata": {}, "source": ["# t"]},
-            {"cell_type": "code", "metadata": {}, "source": "x = 1\ny = 2", "outputs": [{"x": 1}], "execution_count": 3},
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "source": "x = 1\ny = 2",
+                "outputs": [{"x": 1}],
+                "execution_count": 3,
+            },
         ],
         "metadata": {"widgets": {}},
         "nbformat": 4,

@@ -32,7 +32,9 @@ def test_create_env_with_micromamba(fake_micromamba, tmp_path, verbose):
     assert prefix == root / "envs" / xeus.ENV_NAME and root.is_dir()
     (command,) = fake_micromamba
     assert command[0] == "/opt/bin/micromamba"
-    assert command[1:] == xeus.micromamba_args(prefix, root, ["xeus-python"], xeus.XEUS_CHANNELS) + (["-vvv"] if verbose else [])
+    assert command[1:] == xeus.micromamba_args(prefix, root, ["xeus-python"], xeus.XEUS_CHANNELS) + (
+        ["-vvv"] if verbose else []
+    )
 
 
 def test_create_env_without_micromamba_on_path(monkeypatch, tmp_path):
@@ -48,7 +50,9 @@ def test_cli_xeus_env_delegates_to_jupyterlite_xeus(monkeypatch, tmp_path):
     monkeypatch.setitem(sys.modules, "jupyterlite_xeus", types.ModuleType("jupyterlite_xeus"))
     monkeypatch.setitem(sys.modules, "jupyterlite_xeus.create_conda_env", module)
     pyproject = tmp_path / "pyproject.toml"
-    pyproject.write_text('[project]\ndependencies = ["numpy"]\n[project.optional-dependencies]\nlab = ["xeus-python>=0.17"]\n')
+    pyproject.write_text(
+        '[project]\ndependencies = ["numpy"]\n[project.optional-dependencies]\nlab = ["xeus-python>=0.17"]\n'
+    )
 
     cli.main(["xeus-env", "--root-prefix", str(tmp_path / "root"), "--pyproject", str(pyproject), "--extras", "lab"])
 

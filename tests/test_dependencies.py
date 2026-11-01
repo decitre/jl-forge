@@ -11,5 +11,7 @@ def test_merges_constraints_and_canonicalizes_names():
 
 
 def test_markers_evaluated_for_emscripten_and_exclude():
-    project = {"dependencies": ["pywin32; sys_platform == 'win32'", "pyodide-only; sys_platform == 'emscripten'", "aiohttp"]}
+    project = {
+        "dependencies": ["pywin32; sys_platform == 'win32'", "pyodide-only; sys_platform == 'emscripten'", "aiohttp"]
+    }
     assert to_specs(collect_requirements(project, exclude={"AIOHTTP"})) == ["pyodide-only"]

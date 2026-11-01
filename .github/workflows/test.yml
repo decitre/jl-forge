@@ -15,6 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - name: Lint
+        run: uv run --group dev ruff check src tests examples && uv run --group dev ruff format src tests examples --check
       - name: Test on each supported Python
         # uv installs each interpreter; --isolated gives each run its own temporary environment.
         run: |

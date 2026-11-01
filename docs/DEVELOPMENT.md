@@ -58,6 +58,13 @@ With coverage, as in CI:
 uv run --group dev pytest --cov --cov-report=term-missing
 ```
 
+Lint and format with ruff; CI runs the check form:
+
+```bash
+uv run --group dev ruff check src tests examples --fix && uv run --group dev ruff format src tests examples   # fix
+uv run --group dev ruff check src tests examples && uv run --group dev ruff format src tests examples --check # check
+```
+
 `testpaths` is limited to `tests/`: the demo workspace contains conda packages whose own test files would otherwise be collected.
 
 xeus tests replace `jupyterlite_xeus` and `micromamba` with fakes, so they check the commands jl-forge issues, not that the environment can be solved. The demo build covers the real thing.

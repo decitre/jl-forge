@@ -75,13 +75,17 @@ def _run_all_cells(page: Page) -> None:
     page.click("li.lm-Menu-item:has-text('Run All Cells')")  # queued until the kernel is ready
 
 
-@pytest.mark.parametrize(("site", "path", "kernel", "capture_works"), PAGES, ids=[f"{s}-{p.split('/')[0]}" for s, p, *_ in PAGES])
+@pytest.mark.parametrize(
+    ("site", "path", "kernel", "capture_works"), PAGES, ids=[f"{s}-{p.split('/')[0]}" for s, p, *_ in PAGES]
+)
 def test_demo_notebook(page, base_url, site, path, kernel, capture_works):
     page.goto(f"{base_url}/{site}/{path}")
     if not path.startswith("voici/"):  # Voici runs the notebook on load
         _run_all_cells(page)
 
-    page.wait_for_function("re => new RegExp(re).test(document.body.innerText)", arg=KERNEL_INFO.pattern, timeout=KERNEL_START_MS)
+    page.wait_for_function(
+        "re => new RegExp(re).test(document.body.innerText)", arg=KERNEL_INFO.pattern, timeout=KERNEL_START_MS
+    )
     assert KERNEL_INFO.search(page.inner_text("body")).group(1) == kernel
 
     button = page.locator("button.jupyter-button", has_text="Click me")

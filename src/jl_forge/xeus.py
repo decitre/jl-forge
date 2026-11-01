@@ -49,11 +49,16 @@ def micromamba_args(prefix: Path, root_prefix: Path, specs: list[str], channels:
     """``micromamba`` arguments creating ``prefix``; the flags match those jupyterlite-xeus uses."""
     channel_args = [arg for channel in channels for arg in ("--channel", channel)]
     return [
-        "create", "--yes",
-        "--platform", PLATFORM,
-        "--root-prefix", str(root_prefix),
-        "--prefix", str(prefix),
-        "--relocate-prefix", "",
+        "create",
+        "--yes",
+        "--platform",
+        PLATFORM,
+        "--root-prefix",
+        str(root_prefix),
+        "--prefix",
+        str(prefix),
+        "--relocate-prefix",
+        "",
         "--no-pyc",
         *channel_args,
         *specs,
