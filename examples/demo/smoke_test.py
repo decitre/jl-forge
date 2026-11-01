@@ -37,7 +37,7 @@ PAGES = [
     ("pyodide", "lab/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "voici/render/demo.html", "pyodide", True),
-    # build-0.8.x.sh, local only: kernel 0.8.x, no Voici
+    # build-0.8.x.sh: kernel 0.8.x, no Voici
     ("pyodide-latest", "lab/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide-latest", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
 ]

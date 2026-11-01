@@ -125,7 +125,7 @@ It needs Google Chrome installed; Playwright drives it through its `chrome` chan
 
 ### Testing the Latest Pyodide Kernel
 
-The demo pins `jupyterlite-pyodide-kernel==0.7.0` for Voici. `examples/demo/build-0.8.x.sh` builds the same Pyodide site with the latest 0.8.x kernel (Pyodide 314, Python 3.14), Lab and Notebook only, into `examples/demo/workspace-0.8.x/`. It runs locally only, not in CI:
+The demo pins `jupyterlite-pyodide-kernel==0.7.0` for Voici. `examples/demo/build-0.8.x.sh` builds the same Pyodide site with the latest 0.8.x kernel (Pyodide 314, Python 3.14), Lab and Notebook only, into `examples/demo/workspace-0.8.x/`. CI runs it in `build.yml`'s `build-0-8` job; locally:
 
 ```bash
 examples/demo/build-0.8.x.sh
@@ -144,7 +144,18 @@ The unit test run doesn't collect it (`testpaths = ["tests"]`).
 
 ### GitHub Pages Deployment
 
-`build.yml` runs `examples/demo/build.sh` and the browser smoke test on pushes, pull requests and manual dispatch, and uploads `workspace/public` as the Pages artifact. Only pushes to `main` deploy.
+`build.yml` runs `examples/demo/build.sh` and the browser smoke test on pushes, pull requests, manual dispatch and every Monday, and uploads `workspace/public` as the Pages artifact. Only pushes to `main` and manual dispatch on `main` deploy. Its `build-0-8` job builds and smoke-tests the Pyodide 0.8.x site in parallel; it isn't deployed, and its failure doesn't block deployment.
+
+### Upgrading Kernels, JupyterLite and Voici
+
+`build.sh` installs the latest `jupyterlite-core`, `jupyterlite-xeus` and `voici-core`, and `build-0.8.x.sh` the latest kernel 0.8.x, so the weekly run tests new upstream releases. The scripts cap the supported majors (`jupyterlite-xeus>=5,<6`, kernel `>=0.8,<0.9`): to adopt a new one, raise the cap on a branch and follow the same steps. When a release comes out, or the weekly run fails:
+
+1. Run both builds and the smoke test on each (above).
+2. Fix what broke, or record the new constraint in [COMPATIBILITY.md](COMPATIBILITY.md#constraints-and-their-sources).
+3. Update the [Tested Versions](COMPATIBILITY.md#tested-versions) table and the verification date.
+4. Mention the change in `release-notes.md`.
+
+When a `voici-core` release runs kernel 0.8+, move the demo's Pyodide site to it and drop kernel 0.7.0 from the [supported combinations](COMPATIBILITY.md#supported-combinations), in a minor release.
 
 Pages must be enabled once with GitHub Actions as its source (Settings → Pages), or:
 
