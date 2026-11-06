@@ -13,7 +13,8 @@ from packaging.utils import canonicalize_name
 
 from jl_forge import cache
 
-INSTALL_LINE = "from install import _; await _()\n"
+# /drive: the contents root in the kernel (hard-coded mountpoint), so nested notebooks find install.py there
+INSTALL_LINE = 'import sys; sys.path.append("/drive"); from install import _; await _()\n'
 
 RELEASE_URL = "https://github.com/pyodide/pyodide/releases/download/{version}/pyodide-{version}.tar.bz2"
 LOCK = "pyodide/pyodide-lock.json"
@@ -42,9 +43,10 @@ def install_script(wheel_name: str, packages: dict[str, str], bundled_wheels: li
     name in ``packages`` (name to requirement), so ``--exclude`` holds and wheel metadata isn't
     resolved again. Packages already installed in the kernel, whatever their version, are skipped.
     """
-    wheels = ", ".join(repr(f"emfs:{w}") for w in [wheel_name, *bundled_wheels])
+    wheels = ", ".join(repr(w) for w in [wheel_name, *bundled_wheels])
     return (
         "import piplite\n"
+        "from pathlib import Path\n"
         "from importlib.metadata import PackageNotFoundError, version\n"
         "def _installed(name):\n"
         "  try:\n"
@@ -52,7 +54,8 @@ def install_script(wheel_name: str, packages: dict[str, str], bundled_wheels: li
         "  except PackageNotFoundError:\n"
         "    return False\n"
         "async def _():\n"
-        f"  emfs_wheels = [{wheels}]\n"
+        "  # absolute, so notebooks in any directory resolve the wheels next to this file\n"
+        f"  emfs_wheels = [f'emfs:{{Path(__file__).parent / w}}' for w in [{wheels}]]\n"
         "  for wheel in emfs_wheels:\n"
         "    await piplite.install(wheel, deps=False, keep_going=True)\n"
         "  # skip what the kernel already loaded, e.g. numpy with matplotlib at startup\n"

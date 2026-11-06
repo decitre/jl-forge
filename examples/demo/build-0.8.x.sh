@@ -27,6 +27,7 @@ python -c "from importlib.metadata import version as v; from jupyterlite_pyodide
 print(f'jupyterlite-pyodide-kernel {v(\"jupyterlite-pyodide-kernel\")}, Pyodide {p}')"
 
 cp notebooks/*.ipynb "$WORKSPACE/content/"
+mkdir "$WORKSPACE/content/nested" && cp notebooks/demo.ipynb "$WORKSPACE/content/nested/"
 uv build --wheel --out-dir "$WORKSPACE/content" .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name jl-forge-demo --wheel-dir "$WORKSPACE/content"
 jl-forge notebooks "$WORKSPACE/content" --strip --pyodide-install
