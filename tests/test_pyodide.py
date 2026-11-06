@@ -121,6 +121,7 @@ def test_prune_keeps_runtime_and_kept_archives_only(tmp_path):
         ]
     )
     assert not list(tmp_path.glob("*.part"))
+    assert set(pyodide.read_lock(out)["packages"]) == {"ipython", "prompt-toolkit", "pure-eval", "wcwidth"}
 
 
 @pytest.mark.parametrize("bad", ["../evil", "/abs", "x/outside", "pyodide/../../evil"])

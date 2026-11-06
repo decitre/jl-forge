@@ -3,6 +3,7 @@
 
 """Pyodide kernel: install the project wheel via piplite, and self-host a pruned Pyodide distribution."""
 
+import io
 import json
 import re
 import tarfile
@@ -108,7 +109,7 @@ def lock_closure(lock: dict, names) -> set[str]:
 def prune(tarball: Path, lock: dict, keep: set[str], out: Path) -> tuple[int, int]:
     """Write ``out`` without the files of packages outside ``keep``; return (kept, dropped) package counts.
 
-    Dropped: the files the lock lists for packages outside ``keep``, and wheels the lock doesn't list
+    Dropped: the files and lock entries of packages outside ``keep``, and wheels the lock doesn't list
     (Pyodide's test fixtures, which can't be loaded). Everything else, the runtime with its
     ``python_stdlib.zip``, stays. ``out`` keeps the upstream top-level ``pyodide/`` directory, the
     only layout jupyterlite's ``--pyodide`` option reads from a tarball.
@@ -118,11 +119,19 @@ def prune(tarball: Path, lock: dict, keep: set[str], out: Path) -> tuple[int, in
     }
     kept_files = {f for name in keep for f in files.get(name, ())}
     dropped_files = {f for name, fs in files.items() if name not in keep for f in fs}
+    # pruned entries must leave the lock too, or import-based loading fetches them and 404s
+    pruned_lock = json.dumps(
+        {**lock, "packages": {k: v for k, v in lock["packages"].items() if canonicalize_name(k) in keep}}
+    ).encode()
     part = out.with_name(out.name + ".part")
     with tarfile.open(tarball, "r:bz2") as src, tarfile.open(part, "w:bz2") as dst:
         for member in _members(src):
             name = PurePosixPath(member.name).name
             if name in dropped_files or (name.endswith((".whl", ".whl.metadata")) and name not in kept_files):
+                continue
+            if member.name == LOCK:
+                member.size = len(pruned_lock)
+                dst.addfile(member, io.BytesIO(pruned_lock))
                 continue
             dst.addfile(member, src.extractfile(member) if member.isfile() else None)
     part.rename(out)
