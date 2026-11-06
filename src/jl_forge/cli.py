@@ -56,14 +56,17 @@ def _clean(args) -> None:
 
 
 def _notebooks(args) -> None:
-    for path in sorted(args.dir.glob("*.ipynb")):
+    for path in sorted(args.dir.rglob("*.ipynb")):
+        if ".ipynb_checkpoints" in path.parts:
+            continue
+        name = path.relative_to(args.dir).as_posix()
         nb = notebooks.read(path)
         if args.strip:
             notebooks.strip(nb)
         if args.prepend and not notebooks.prepend_to_first_code_cell(nb, args.prepend):
-            print(f"No code cell: {path.name}", file=sys.stderr)
+            print(f"No code cell: {name}", file=sys.stderr)
         notebooks.write(path, nb)
-        print(f"Prepared: {path.name}")
+        print(f"Prepared: {name}")
 
 
 @contextlib.contextmanager
@@ -196,7 +199,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.set_defaults(func=_clean)
 
-    p = sub.add_parser("notebooks", help="Strip and/or patch the notebooks of a directory in place")
+    p = sub.add_parser(
+        "notebooks", help="Strip and/or patch the notebooks of a directory and its subdirectories in place"
+    )
     p.add_argument("dir", type=Path)
     p.add_argument("--strip", action="store_true", help="Clear code cell outputs and widget state")
     p.add_argument("--prepend", metavar="LINE", help="Prepend LINE to the first code cell (idempotent)")

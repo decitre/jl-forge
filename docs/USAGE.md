@@ -23,7 +23,7 @@ jl-forge clean workspace
 
 ### `jl-forge notebooks DIR [--strip] [--prepend LINE | --pyodide-install]`
 
-Rewrites every `DIR/*.ipynb` in place:
+Rewrites every notebook in `DIR` and its subdirectories in place (`.ipynb_checkpoints` excluded):
 
 - `--strip` clears `outputs` and `execution_count` of code cells and removes saved widget state. Markdown cells are untouched.
 - `--prepend LINE` adds `LINE` at the top of the first code cell, unless it is already there, so repeated builds don't duplicate it.
