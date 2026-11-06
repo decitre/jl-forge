@@ -56,14 +56,17 @@ def _clean(args) -> None:
 
 
 def _notebooks(args) -> None:
-    for path in sorted(args.dir.glob("*.ipynb")):
+    for path in sorted(args.dir.rglob("*.ipynb")):
+        if ".ipynb_checkpoints" in path.parts:
+            continue
+        name = path.relative_to(args.dir).as_posix()
         nb = notebooks.read(path)
         if args.strip:
             notebooks.strip(nb)
         if args.prepend and not notebooks.prepend_to_first_code_cell(nb, args.prepend):
-            print(f"No code cell: {path.name}", file=sys.stderr)
+            print(f"No code cell: {name}", file=sys.stderr)
         notebooks.write(path, nb)
-        print(f"Prepared: {path.name}")
+        print(f"Prepared: {name}")
 
 
 @contextlib.contextmanager
@@ -114,7 +117,9 @@ def _pyodide_install(args) -> None:
     reqs = dependencies.collect_requirements(project, args.extras, exclude=exclude)
     wheel = pyodide.find_wheel(args.wheel_dir, args.package_name)
     output = args.wheel_dir / "install.py"  # must sit next to the wheel for its emfs: URL to resolve
-    output.write_text(pyodide.install_script(wheel.name, dependencies.to_specs(reqs), bundled), encoding="utf-8")
+    output.write_text(
+        pyodide.install_script(wheel.name, dict(zip(reqs, dependencies.to_specs(reqs))), bundled), encoding="utf-8"
+    )
     print(f"Generated {output}")
 
 
@@ -160,7 +165,7 @@ def _pyodide_wheels(args) -> None:
     version = args.version or pyodide.kernel_pyodide_version()
     lock = pyodide.cached_lock(version, args.cache_dir / "pyodide")
     provided = {canonicalize_name(name) for name in lock["packages"]} | wheels.kernel_index_names()
-    requirements = list(args.require)
+    requirements = [*pyodide.KERNEL_REQUIREMENTS, *args.require]
     if args.pyproject:
         project = dependencies.load_project(args.pyproject)
         requirements += dependencies.to_specs(dependencies.collect_requirements(project, args.extras))
@@ -196,7 +201,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.set_defaults(func=_clean)
 
-    p = sub.add_parser("notebooks", help="Strip and/or patch the notebooks of a directory in place")
+    p = sub.add_parser(
+        "notebooks", help="Strip and/or patch the notebooks of a directory and its subdirectories in place"
+    )
     p.add_argument("dir", type=Path)
     p.add_argument("--strip", action="store_true", help="Clear code cell outputs and widget state")
     p.add_argument("--prepend", metavar="LINE", help="Prepend LINE to the first code cell (idempotent)")

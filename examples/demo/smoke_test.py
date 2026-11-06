@@ -37,9 +37,12 @@ PAGES = [
     ("pyodide", "lab/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide", "voici/render/demo.html", "pyodide", True),
+    # a notebook in a subdirectory installs from the install.py at the contents root
+    ("pyodide", "lab/index.html?path=nested/demo.ipynb", "pyodide", True),
     # build-0.8.x.sh: kernel 0.8.x, no Voici
     ("pyodide-latest", "lab/index.html?path=demo.ipynb", "pyodide", True),
     ("pyodide-latest", "notebooks/index.html?path=demo.ipynb", "pyodide", True),
+    ("pyodide-latest", "lab/index.html?path=nested/demo.ipynb", "pyodide", True),
 ]
 PAGES = [page for page in PAGES if (PUBLIC / page[0]).is_dir()]
 
@@ -87,7 +90,9 @@ def _run_all_cells(page: Page) -> None:
 
 
 @pytest.mark.parametrize(
-    ("site", "path", "kernel", "capture_works"), PAGES, ids=[f"{s}-{p.split('/')[0]}" for s, p, *_ in PAGES]
+    ("site", "path", "kernel", "capture_works"),
+    PAGES,
+    ids=[f"{s}-{p.split('/')[0]}{'-nested' * ('nested/' in p)}" for s, p, *_ in PAGES],
 )
 def test_demo_notebook(page, base_url, site, path, kernel, capture_works):
     page.goto(f"{base_url}/{site}/{path}")

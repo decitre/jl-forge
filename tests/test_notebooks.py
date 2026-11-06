@@ -1,3 +1,4 @@
+from jl_forge.cli import main
 from jl_forge.notebooks import prepend_to_first_code_cell, read, strip, write
 
 
@@ -38,3 +39,14 @@ def test_prepend_is_idempotent_and_roundtrips(tmp_path):
 
 def test_prepend_without_code_cell():
     assert not prepend_to_first_code_cell({"cells": [{"cell_type": "markdown", "source": []}]}, "x")
+
+
+def test_cli_notebooks_recurses_into_subdirectories(tmp_path, capsys):
+    for rel in ("top.ipynb", "ch1/sub.ipynb", ".ipynb_checkpoints/top-checkpoint.ipynb"):
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        write(tmp_path / rel, _nb())
+    main(["notebooks", str(tmp_path), "--strip", "--prepend", "x"])
+    assert capsys.readouterr().out == "Prepared: ch1/sub.ipynb\nPrepared: top.ipynb\n"
+    code = read(tmp_path / "ch1/sub.ipynb")["cells"][1]
+    assert code["outputs"] == [] and code["source"][0] == "x\n"
+    assert read(tmp_path / ".ipynb_checkpoints/top-checkpoint.ipynb")["cells"][1]["outputs"]

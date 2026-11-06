@@ -8,6 +8,7 @@ import pytest
 from packaging.specifiers import SpecifierSet
 
 from jl_forge import pyodide, wheels
+from jl_forge.cli import main
 
 
 def make_wheel(directory, name, version="1.0", requires=()):
@@ -136,3 +137,14 @@ def test_cached_lock_reads_the_release_once(tmp_path, monkeypatch):
     monkeypatch.setattr(pyodide, "read_lock", lambda path: {"info": {"python": "3.13.2"}, "packages": {}})
     assert pyodide.cached_lock("1.0", tmp_path) == pyodide.cached_lock("1.0", tmp_path)
     assert calls == ["1.0"]
+
+
+def test_cli_pyodide_wheels_always_bundles_kernel_requirements(tmp_path, monkeypatch, capsys):
+    seen = []
+    monkeypatch.setattr(
+        pyodide, "cached_lock", lambda version, cache_dir: {"info": {"python": "3.13.2"}, "packages": {}}
+    )
+    monkeypatch.setattr(wheels, "kernel_index_names", lambda: set())
+    monkeypatch.setattr(wheels, "bundle", lambda requirements, *a, **kw: seen.extend(requirements) or [])
+    main(["pyodide-wheels", "--version", "1.0", "--out-dir", str(tmp_path), "--require", "tqdm"])
+    assert seen == ["comm", "tqdm"]

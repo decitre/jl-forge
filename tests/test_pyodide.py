@@ -1,7 +1,9 @@
+import asyncio
 import io
 import json
 import sys
 import tarfile
+import types
 
 import pytest
 
@@ -37,9 +39,22 @@ def test_cli_writes_executable_install_script(tmp_path):
     )
     src = (tmp_path / "install.py").read_text()
     compile(src, "install.py", "exec")
-    assert "emfs_wheels = ['emfs:my_pkg-1.0-py3-none-any.whl']" in src
+    assert "for w in ['my_pkg-1.0-py3-none-any.whl']]" in src
     assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
-    assert "packages = ['tqdm>=4']" in src
+    assert "{'tqdm': 'tqdm>=4'}" in src
+
+
+def test_install_script_skips_installed_packages(monkeypatch):
+    calls = []
+
+    async def install(what, **kw):
+        calls.append(what)
+
+    monkeypatch.setitem(sys.modules, "piplite", types.SimpleNamespace(install=install))
+    ns = {"__file__": "/drive/install.py"}
+    exec(pyodide.install_script("p.whl", {"pytest": "pytest>=1", "not-installed-x": "not-installed-x<2"}), ns)
+    asyncio.run(ns["_"]())
+    assert calls == ["emfs:/drive/p.whl", ["not-installed-x<2"]]
 
 
 def test_cli_bundled_wheels_install_without_deps(tmp_path):
@@ -51,10 +66,10 @@ def test_cli_bundled_wheels_install_without_deps(tmp_path):
     main([*args, "--bundled-wheel", str(tmp_path / "dep_b-2.0-py3-none-any.whl")])
     src = (tmp_path / "install.py").read_text()
     compile(src, "install.py", "exec")
-    wheels = ", ".join(f"'emfs:{n}-py3-none-any.whl'" for n in ("my_pkg-1.0", "dep_a-1.0", "dep_b-2.0"))
-    assert f"emfs_wheels = [{wheels}]" in src
+    wheels = ", ".join(f"'{n}-py3-none-any.whl'" for n in ("my_pkg-1.0", "dep_a-1.0", "dep_b-2.0"))
+    assert f"for w in [{wheels}]]" in src
     assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
-    assert "packages = ['orjson']" in src
+    assert "{'orjson': 'orjson'}" in src
     with pytest.raises(SystemExit, match="missing.whl"):
         main([*args, "--bundled-wheel", "missing.whl"])
 
@@ -121,6 +136,7 @@ def test_prune_keeps_runtime_and_kept_archives_only(tmp_path):
         ]
     )
     assert not list(tmp_path.glob("*.part"))
+    assert set(pyodide.read_lock(out)["packages"]) == {"ipython", "prompt-toolkit", "pure-eval", "wcwidth"}
 
 
 @pytest.mark.parametrize("bad", ["../evil", "/abs", "x/outside", "pyodide/../../evil"])

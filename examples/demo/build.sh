@@ -49,6 +49,7 @@ echo "== Pyodide site"
 venv "$WORKSPACE/venv-pyodide" jupyterlite-pyodide-kernel==0.7.0 "jupyterlab_widgets~=3.0"
 PATH="$WORKSPACE/venv-pyodide/bin:$PATH"
 cp notebooks/*.ipynb "$WORKSPACE/content-pyodide/"
+mkdir "$WORKSPACE/content-pyodide/nested" && cp notebooks/demo.ipynb "$WORKSPACE/content-pyodide/nested/"
 uv build --wheel --out-dir "$WORKSPACE/content-pyodide" .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name jl-forge-demo --wheel-dir "$WORKSPACE/content-pyodide"
 jl-forge notebooks "$WORKSPACE/content-pyodide" --strip --pyodide-install

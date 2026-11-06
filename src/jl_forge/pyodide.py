@@ -3,6 +3,7 @@
 
 """Pyodide kernel: install the project wheel via piplite, and self-host a pruned Pyodide distribution."""
 
+import io
 import json
 import re
 import tarfile
@@ -12,13 +13,16 @@ from packaging.utils import canonicalize_name
 
 from jl_forge import cache
 
-INSTALL_LINE = "from install import _; await _()\n"
+# /drive: the contents root in the kernel (hard-coded mountpoint), so nested notebooks find install.py there
+INSTALL_LINE = 'import sys; sys.path.append("/drive"); from install import _; await _()\n'
 
 RELEASE_URL = "https://github.com/pyodide/pyodide/releases/download/{version}/pyodide-{version}.tar.bz2"
 LOCK = "pyodide/pyodide-lock.json"
 # Distribution packages the kernel loads at startup, measured in the browser with
 # jupyterlite-pyodide-kernel 0.7.0; their dependencies come from the lock closure.
 KERNEL_PACKAGES = frozenset({"micropip", "sqlite3", "jedi", "ipython", "matplotlib"})
+# Packages the kernel's ipykernel shim piplite-installs at startup (kernel 0.7.0), bundled by pyodide-wheels.
+KERNEL_REQUIREMENTS = ("comm",)
 
 
 def find_wheel(wheel_dir: Path, package_name: str) -> Path:
@@ -32,20 +36,30 @@ def find_wheel(wheel_dir: Path, package_name: str) -> Path:
     return wheels[0]
 
 
-def install_script(wheel_name: str, packages: list[str], bundled_wheels: list[str] = ()) -> str:
+def install_script(wheel_name: str, packages: dict[str, str], bundled_wheels: list[str] = ()) -> str:
     """Source of an ``install.py`` that sits next to the wheels in the site contents.
 
     The project wheel and ``bundled_wheels`` install with ``deps=False``: their dependencies come by
-    name in ``packages``, so ``--exclude`` holds and wheel metadata isn't resolved again.
+    name in ``packages`` (name to requirement), so ``--exclude`` holds and wheel metadata isn't
+    resolved again. Packages already installed in the kernel, whatever their version, are skipped.
     """
-    wheels = ", ".join(repr(f"emfs:{w}") for w in [wheel_name, *bundled_wheels])
+    wheels = ", ".join(repr(w) for w in [wheel_name, *bundled_wheels])
     return (
         "import piplite\n"
+        "from pathlib import Path\n"
+        "from importlib.metadata import PackageNotFoundError, version\n"
+        "def _installed(name):\n"
+        "  try:\n"
+        "    return bool(version(name))\n"
+        "  except PackageNotFoundError:\n"
+        "    return False\n"
         "async def _():\n"
-        f"  emfs_wheels = [{wheels}]\n"
+        "  # absolute, so notebooks in any directory resolve the wheels next to this file\n"
+        f"  emfs_wheels = [f'emfs:{{Path(__file__).parent / w}}' for w in [{wheels}]]\n"
         "  for wheel in emfs_wheels:\n"
         "    await piplite.install(wheel, deps=False, keep_going=True)\n"
-        f"  packages = [{', '.join(repr(p) for p in packages)}]\n"
+        "  # skip what the kernel already loaded, e.g. numpy with matplotlib at startup\n"
+        f"  packages = [spec for name, spec in {packages!r}.items() if not _installed(name)]\n"
         "  if packages:\n"
         "    await piplite.install(packages, keep_going=True)\n"
     )
@@ -108,7 +122,7 @@ def lock_closure(lock: dict, names) -> set[str]:
 def prune(tarball: Path, lock: dict, keep: set[str], out: Path) -> tuple[int, int]:
     """Write ``out`` without the files of packages outside ``keep``; return (kept, dropped) package counts.
 
-    Dropped: the files the lock lists for packages outside ``keep``, and wheels the lock doesn't list
+    Dropped: the files and lock entries of packages outside ``keep``, and wheels the lock doesn't list
     (Pyodide's test fixtures, which can't be loaded). Everything else, the runtime with its
     ``python_stdlib.zip``, stays. ``out`` keeps the upstream top-level ``pyodide/`` directory, the
     only layout jupyterlite's ``--pyodide`` option reads from a tarball.
@@ -118,11 +132,19 @@ def prune(tarball: Path, lock: dict, keep: set[str], out: Path) -> tuple[int, in
     }
     kept_files = {f for name in keep for f in files.get(name, ())}
     dropped_files = {f for name, fs in files.items() if name not in keep for f in fs}
+    # pruned entries must leave the lock too, or import-based loading fetches them and 404s
+    pruned_lock = json.dumps(
+        {**lock, "packages": {k: v for k, v in lock["packages"].items() if canonicalize_name(k) in keep}}
+    ).encode()
     part = out.with_name(out.name + ".part")
     with tarfile.open(tarball, "r:bz2") as src, tarfile.open(part, "w:bz2") as dst:
         for member in _members(src):
             name = PurePosixPath(member.name).name
             if name in dropped_files or (name.endswith((".whl", ".whl.metadata")) and name not in kept_files):
+                continue
+            if member.name == LOCK:
+                member.size = len(pruned_lock)
+                dst.addfile(member, io.BytesIO(pruned_lock))
                 continue
             dst.addfile(member, src.extractfile(member) if member.isfile() else None)
     part.rename(out)
