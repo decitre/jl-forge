@@ -1,7 +1,9 @@
+import asyncio
 import io
 import json
 import sys
 import tarfile
+import types
 
 import pytest
 
@@ -39,7 +41,20 @@ def test_cli_writes_executable_install_script(tmp_path):
     compile(src, "install.py", "exec")
     assert "emfs_wheels = ['emfs:my_pkg-1.0-py3-none-any.whl']" in src
     assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
-    assert "packages = ['tqdm>=4']" in src
+    assert "{'tqdm': 'tqdm>=4'}" in src
+
+
+def test_install_script_skips_installed_packages(monkeypatch):
+    calls = []
+
+    async def install(what, **kw):
+        calls.append(what)
+
+    monkeypatch.setitem(sys.modules, "piplite", types.SimpleNamespace(install=install))
+    ns = {}
+    exec(pyodide.install_script("p.whl", {"pytest": "pytest>=1", "not-installed-x": "not-installed-x<2"}), ns)
+    asyncio.run(ns["_"]())
+    assert calls == ["emfs:p.whl", ["not-installed-x<2"]]
 
 
 def test_cli_bundled_wheels_install_without_deps(tmp_path):
@@ -54,7 +69,7 @@ def test_cli_bundled_wheels_install_without_deps(tmp_path):
     wheels = ", ".join(f"'emfs:{n}-py3-none-any.whl'" for n in ("my_pkg-1.0", "dep_a-1.0", "dep_b-2.0"))
     assert f"emfs_wheels = [{wheels}]" in src
     assert "await piplite.install(wheel, deps=False, keep_going=True)" in src
-    assert "packages = ['orjson']" in src
+    assert "{'orjson': 'orjson'}" in src
     with pytest.raises(SystemExit, match="missing.whl"):
         main([*args, "--bundled-wheel", "missing.whl"])
 

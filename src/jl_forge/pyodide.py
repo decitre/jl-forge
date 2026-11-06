@@ -35,20 +35,28 @@ def find_wheel(wheel_dir: Path, package_name: str) -> Path:
     return wheels[0]
 
 
-def install_script(wheel_name: str, packages: list[str], bundled_wheels: list[str] = ()) -> str:
+def install_script(wheel_name: str, packages: dict[str, str], bundled_wheels: list[str] = ()) -> str:
     """Source of an ``install.py`` that sits next to the wheels in the site contents.
 
     The project wheel and ``bundled_wheels`` install with ``deps=False``: their dependencies come by
-    name in ``packages``, so ``--exclude`` holds and wheel metadata isn't resolved again.
+    name in ``packages`` (name to requirement), so ``--exclude`` holds and wheel metadata isn't
+    resolved again. Packages already installed in the kernel, whatever their version, are skipped.
     """
     wheels = ", ".join(repr(f"emfs:{w}") for w in [wheel_name, *bundled_wheels])
     return (
         "import piplite\n"
+        "from importlib.metadata import PackageNotFoundError, version\n"
+        "def _installed(name):\n"
+        "  try:\n"
+        "    return bool(version(name))\n"
+        "  except PackageNotFoundError:\n"
+        "    return False\n"
         "async def _():\n"
         f"  emfs_wheels = [{wheels}]\n"
         "  for wheel in emfs_wheels:\n"
         "    await piplite.install(wheel, deps=False, keep_going=True)\n"
-        f"  packages = [{', '.join(repr(p) for p in packages)}]\n"
+        "  # skip what the kernel already loaded, e.g. numpy with matplotlib at startup\n"
+        f"  packages = [spec for name, spec in {packages!r}.items() if not _installed(name)]\n"
         "  if packages:\n"
         "    await piplite.install(packages, keep_going=True)\n"
     )

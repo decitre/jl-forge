@@ -117,7 +117,9 @@ def _pyodide_install(args) -> None:
     reqs = dependencies.collect_requirements(project, args.extras, exclude=exclude)
     wheel = pyodide.find_wheel(args.wheel_dir, args.package_name)
     output = args.wheel_dir / "install.py"  # must sit next to the wheel for its emfs: URL to resolve
-    output.write_text(pyodide.install_script(wheel.name, dependencies.to_specs(reqs), bundled), encoding="utf-8")
+    output.write_text(
+        pyodide.install_script(wheel.name, dict(zip(reqs, dependencies.to_specs(reqs))), bundled), encoding="utf-8"
+    )
     print(f"Generated {output}")
 
 
