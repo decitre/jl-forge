@@ -6,7 +6,7 @@
 [![Build demo][ci-badge]][ci-url]
 [![Coverage][codecov-badge]][codecov-url]
 
-Package version: `0.4.0`
+Package version: `0.5.0`
 
 **Build steps for JupyterLite sites** — turn a Python project and its notebooks into version-matched, pruned and fully offline xeus-python or Pyodide sites, sized for GitHub or GitLab Pages.
 
