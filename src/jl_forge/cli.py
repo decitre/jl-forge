@@ -160,7 +160,7 @@ def _pyodide_wheels(args) -> None:
     version = args.version or pyodide.kernel_pyodide_version()
     lock = pyodide.cached_lock(version, args.cache_dir / "pyodide")
     provided = {canonicalize_name(name) for name in lock["packages"]} | wheels.kernel_index_names()
-    requirements = list(args.require)
+    requirements = [*pyodide.KERNEL_REQUIREMENTS, *args.require]
     if args.pyproject:
         project = dependencies.load_project(args.pyproject)
         requirements += dependencies.to_specs(dependencies.collect_requirements(project, args.extras))

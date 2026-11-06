@@ -20,6 +20,8 @@ LOCK = "pyodide/pyodide-lock.json"
 # Distribution packages the kernel loads at startup, measured in the browser with
 # jupyterlite-pyodide-kernel 0.7.0; their dependencies come from the lock closure.
 KERNEL_PACKAGES = frozenset({"micropip", "sqlite3", "jedi", "ipython", "matplotlib"})
+# Packages the kernel's ipykernel shim piplite-installs at startup (kernel 0.7.0), bundled by pyodide-wheels.
+KERNEL_REQUIREMENTS = ("comm",)
 
 
 def find_wheel(wheel_dir: Path, package_name: str) -> Path:

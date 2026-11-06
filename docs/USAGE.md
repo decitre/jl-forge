@@ -119,7 +119,7 @@ jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyod
 jupyter lite build --lite-dir workspace/lite-pyodide ...
 ```
 
-- **What**: the requirements from `--pyproject`/`--extras` and `--require REQ ...`, and their dependencies, except packages the Pyodide distribution or the kernel's own index (piplite, its `ipykernel` and `widgetsnbextension` stand-ins) provides. Markers are evaluated for Pyodide's Python. For the demo: ipywidgets, jupyterlab_widgets and comm.
+- **What**: `comm`, which the kernel installs at startup, the requirements from `--pyproject`/`--extras` and `--require REQ ...`, and their dependencies, except packages the Pyodide distribution or the kernel's own index (piplite, its `ipykernel` and `widgetsnbextension` stand-ins) provides. Markers are evaluated for Pyodide's Python. For the demo: ipywidgets, jupyterlab_widgets and comm.
 - **Where from**: the newest pure-Python wheel matching each requirement, from PyPI's JSON API (`--index-url` for another index with the same API), cached in `--cache-dir` (default `~/.cache/jl-forge`). A package with no pure-Python wheel that the distribution lacks can't run in Pyodide: the command fails.
 - **Wheels from elsewhere**: `--wheel PATH ...` bundles local wheels, such as packages from a private index downloaded with pip, and follows their dependencies.
 - **`--strip-requires NAME ...`**: bundles those packages without their dependency metadata, so piplite installs them alone; for packages whose dependencies can't be satisfied in the browser.
