@@ -15,7 +15,7 @@ from pathlib import Path
 XEUS_RUNTIME = ["xeus-python", "xeus-python-shell", "xeus-python-shell-lite"]
 XEUS_CHANNELS = [
     "https://conda.anaconda.org/conda-forge",
-    "https://repo.prefix.dev/emscripten-forge-dev",
+    "https://repo.prefix.dev/emscripten-forge-4x",
 ]
 ENV_NAME = "xeus-kernels"
 PLATFORM = "emscripten-wasm32"

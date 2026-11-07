@@ -2,7 +2,7 @@
 
 Which JupyterLite apps work with which kernel, the package versions that make them work, and where each constraint comes from. Constraints come from upstream projects; jl-forge doesn't add any.
 
-Verified on 2026-10-31 by building [`examples/demo`](../examples/demo) and running its notebook in Chrome: kernel info, an ipywidgets button updating a label, and two `Output` widgets updated from the button callback. [`smoke_test.py`](../examples/demo/smoke_test.py) repeats these checks in CI on every build.
+Verified on 2026-11-07 by building [`examples/demo`](../examples/demo) and running its notebook in Chrome: kernel info, an ipywidgets button updating a label, and two `Output` widgets updated from the button callback. [`smoke_test.py`](../examples/demo/smoke_test.py) repeats these checks in CI on every build.
 
 ## Supported Combinations
 
@@ -32,7 +32,7 @@ Add `--apps tree` for the file browser and the Notebook app's *File → Open*, a
 | Package | xeus-python site | Pyodide site |
 |:--------|:-----------------|:-------------|
 | `jupyterlite-core` | 0.7.6 (capped by voici-core) | 0.7.6 (capped by voici-core) |
-| Kernel | `jupyterlite-xeus` 5.1.0; xeus-python 0.17.8, Python 3.13.1 (emscripten-forge-dev) | `jupyterlite-pyodide-kernel` 0.7.0 (Pyodide 0.29.0, Python 3.13.2) |
+| Kernel | `jupyterlite-xeus` 5.1.0; xeus-python 0.19.0, pyjs 4.1.0, Python 3.13.1 (emscripten-forge-4x) | `jupyterlite-pyodide-kernel` 0.7.0 (Pyodide 0.29.0, Python 3.13.2) |
 | `voici-core` | 0.10.0 | 0.10.0 |
 | ipywidgets (kernel) | 8.1.9 from conda-forge | 8.1.9, bundled by `pyodide-wheels` and installed by piplite |
 | Widget frontend | `jupyterlab_widgets` 3.0.17, copied from the conda prefix | `jupyterlab_widgets` 3.0.17, from the build venv |
@@ -80,9 +80,13 @@ Use `pyodide-wheels` with kernel 0.7.x, and for sites that must not reach other 
 
 The Python version is whatever the conda solve picks on the configured channels:
 
-- emscripten-forge-dev (used by jl-forge): Python 3.13.1 only; xeus-python up to 0.17.8, all for 3.13.
-- emscripten-forge-4x: Python 3.13.1 and 3.14.3, but xeus-python builds (up to 0.19.0) target 3.13 only.
+- emscripten-forge-4x (used by jl-forge): Python 3.13.1 and 3.14.3, but xeus-python builds (up to 0.19.0) target 3.13 only.
+- emscripten-forge-dev (used up to jl-forge 0.5): Python 3.13.1 only; xeus-python up to 0.17.8.
 - The [python recipe](https://github.com/emscripten-forge/recipes/blob/main/recipes/recipes_emscripten/python/recipe.yaml) is at 3.14.3; xeus-python on 3.14 will follow its [recipe](https://github.com/emscripten-forge/recipes/blob/main/recipes/recipes_emscripten/xeus-python/recipe.yaml). `jl-forge xeus-mount` derives the site-packages path from the prefix, so nothing in jl-forge changes when it does.
+
+### Cross-origin isolated xeus-python sites need pyjs 4.1
+
+Served with COOP/COEP headers (`crossOriginIsolated` is true), the xeus-python kernel from emscripten-forge-dev fails to start: pyodide-http then calls `to_js(..., dict_converter=...)`, which pyjs supports only from 4.1.0 ([xeus#378](https://github.com/jupyterlite/xeus/issues/378), [pyjs#138](https://github.com/emscripten-forge/pyjs/pull/138)). emscripten-forge-4x brings pyjs 4.1.0 and xeus-python 0.19.0. Verified with JupyterLab, Notebook and Voici in Chrome (COEP `require-corp` and `credentialless`) and WebKit (`require-corp`).
 
 ### Widget frontend in the JupyterLab and Notebook apps
 
