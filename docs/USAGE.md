@@ -51,7 +51,7 @@ XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus 
 | `--micromamba` | Call micromamba directly instead of `jupyterlite_xeus.create_conda_env` |
 | `--verbose` | Pass `-vvv` to micromamba (with `--micromamba`) |
 
-Channels are conda-forge and emscripten-forge-dev.
+Channels are conda-forge and emscripten-forge-4x.
 
 ### `jl-forge xeus-pack-config --out FILE`
 
