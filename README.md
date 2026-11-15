@@ -15,6 +15,8 @@ Package version: `0.6.0`
 
 jl-forge runs on the build machine (macOS or Linux), from a project's own build script. Pick a kernel, and install jl-forge in the build environment, next to `jupyterlite-core` and the kernel, not with `pipx` or `uv tool`: `pyodide-dist` reads the Pyodide version from the installed kernel, and the xeus commands import jupyterlite-xeus and empack. In a uv project, `uv add --dev` does it.
 
+`pyproject.toml` only needs `[project.dependencies]`; a `[build-system]` and a package are needed only for `pyodide-install` and `xeus-mount`, when notebooks import your own package.
+
 **Pyodide site**: project wheel via piplite, bundled wheels, self-hosted and pruned Pyodide.
 
 ```sh
@@ -22,6 +24,7 @@ pip install jl-forge jupyterlite-core jupyterlite-pyodide-kernel
 
 jl-forge clean workspace                          # rm -rf, refused outside the cwd
 jl-forge notebooks workspace/content --strip      # clear code cell outputs
+# only if notebooks import your own package: its wheel and install line
 jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel-dir workspace/content
 jl-forge notebooks workspace/content --pyodide-install
 jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite/pypi
@@ -40,7 +43,7 @@ PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus --pyp
 jupyter lite build --contents workspace/content --output-dir workspace/public \
   --XeusAddon.prefix="$PREFIX" \
   --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out workspace/empack.yml)" \
-  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$PREFIX")"
+  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$PREFIX")"   # only if notebooks import your own package
 ```
 
 **After either build**: no request to other hosts, shared files stored once, within Pages limits.
@@ -96,7 +99,7 @@ A Python API (`jl_forge.dependencies`, `notebooks`, `xeus`, `pyodide`, `wheels`,
      https://github.com/deathbeds/jupyterlite-pyodide-lock), repo2jupyterlite
      (https://pypi.org/project/repo2jupyterlite/). -->
 
-**Best suited for:** projects publishing a Python package with notebooks as a static JupyterLite site.
+**Best suited for:** projects with notebooks, optionally with their own Python package, published as a static JupyterLite site.
 
 > **Note:** jl-forge runs on the build machine (macOS or Linux). It installs nothing in the browser itself; see [docs/RUNTIME.md](https://github.com/decitre/jl-forge/blob/main/docs/RUNTIME.md).
 
