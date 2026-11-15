@@ -11,6 +11,8 @@ pip install 'jl-forge[xeus]' jupyterlite-core                      # xeus-python
 
 Install jl-forge in the build environment, next to `jupyterlite-core` and the kernel, not with `pipx` or `uv tool`: `pyodide-dist` reads the Pyodide version from the installed kernel, and `xeus-env` and `xeus-pack-config` import jupyterlite-xeus and empack. In a uv project, `uv add --dev jl-forge` does it. Building both sites needs one environment per kernel; see [RUNTIME.md](RUNTIME.md). micromamba is required for xeus-python environments.
 
+`pyproject.toml` only needs `[project.dependencies]`; a `[build-system]` and a package are needed only for `pyodide-install` and `xeus-mount`, when notebooks import your own package.
+
 ## Commands
 
 ### `jl-forge clean WORKSPACE [--root ROOT]`
@@ -66,7 +68,7 @@ It halves the packed environment of the demo (13 MB to 6.3 MB). Run it in the xe
 
 ### `jl-forge xeus-mount SOURCE --prefix PREFIX`
 
-Prints a `--XeusAddon.mounts` value that mounts the `SOURCE` package directory into the kernel's site-packages:
+Prints a `--XeusAddon.mounts` value that mounts the `SOURCE` package directory into the kernel's site-packages. Only needed when notebooks import the project's own package:
 
 ```bash
 $ jl-forge xeus-mount src/mypkg --prefix workspace/xeus/envs/xeus-kernels
@@ -77,7 +79,7 @@ The Python version comes from the prefix, so it can't drift from the created env
 
 ### `jl-forge pyodide-install --pyproject FILE --package-name NAME --wheel-dir DIR [options]`
 
-Writes `DIR/install.py`, which installs the project wheel and its dependencies with piplite:
+Writes `DIR/install.py`, which installs the project wheel and its dependencies with piplite. Only needed when notebooks import the project's own package; without it, skip `notebooks --pyodide-install` too:
 
 ```python
 import piplite
@@ -231,9 +233,10 @@ jupyter lite build --contents "$PWD/workspace/content-xeus" --output-dir workspa
   --XeusAddon.prefix="$XEUS_PREFIX" \
   --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out workspace/empack.yml)" \
   --XeusAddon.mount_jupyterlite_content=True \
-  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$XEUS_PREFIX")"
+  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$XEUS_PREFIX")"   # only if notebooks import your own package
 
 # Pyodide, from a venv with jupyterlite-core + jupyterlite-pyodide-kernel
+# only if notebooks import your own package: its wheel, install.py and install line (else just --strip)
 uv build --wheel --out-dir workspace/content-pyodide .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel-dir workspace/content-pyodide
 jl-forge notebooks workspace/content-pyodide --strip --pyodide-install
