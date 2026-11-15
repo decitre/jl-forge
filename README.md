@@ -26,7 +26,7 @@ jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel
 jl-forge notebooks workspace/content --pyodide-install
 jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite/pypi
 jupyter lite build --contents workspace/content --output-dir workspace/public --lite-dir workspace/lite \
-  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide.tar.bz2)"
+  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir workspace/lite/pypi --out workspace/pyodide.tar.bz2)"
 ```
 
 **xeus-python site**: cached conda environment, packed without build-only files, project mounted from source. Also needs [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).

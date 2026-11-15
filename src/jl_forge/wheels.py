@@ -67,6 +67,33 @@ def strip_requires(wheel: Path, out: Path) -> None:
             dst.writestr(info, data)
 
 
+def _pyodide_env(python_version: str) -> dict[str, str]:
+    """Marker environment of Pyodide's Python."""
+    return {
+        **EMSCRIPTEN_MARKERS,
+        "python_version": ".".join(python_version.split(".")[:2]),
+        "python_full_version": python_version,
+    }
+
+
+def required_names(wheel_dir: Path, python_version: str, requested: list[str] = ()) -> set[str]:
+    """Canonical names the wheels in ``wheel_dir`` require in Pyodide, e.g. distribution packages to keep.
+
+    A wheel's extras count when one of these wheels or a ``requested`` requirement (``pkg[extra]``) asks for them.
+    """
+    reqs = {canonicalize_name(parse_wheel_filename(w.name)[0]): requires(w) for w in Path(wheel_dir).glob("*.whl")}
+    extras = {name: {""} for name in reqs}
+    for r in [*(Requirement(r) for r in requested), *(r for rs in reqs.values() for r in rs)]:
+        extras.get(canonicalize_name(r.name), set()).update(r.extras)
+    env = _pyodide_env(python_version)
+    return {
+        canonicalize_name(r.name)
+        for name, rs in reqs.items()
+        for r in rs
+        if not r.marker or any(r.marker.evaluate({**env, "extra": e}) for e in extras[name])
+    }
+
+
 def pure_wheel(name: str, specifier, index: str = PYPI) -> tuple[str, str]:
     """(URL, filename) of the newest pure-Python wheel of ``name`` matching ``specifier``."""
     with urllib.request.urlopen(f"{index.rstrip('/')}/{urllib.parse.quote(name)}/json") as response:
@@ -103,11 +130,7 @@ def bundle(
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    env = {
-        **EMSCRIPTEN_MARKERS,
-        "python_version": ".".join(python_version.split(".")[:2]),
-        "python_full_version": python_version,
-    }
+    env = _pyodide_env(python_version)
     local = {canonicalize_name(parse_wheel_filename(Path(w).name)[0]): Path(w) for w in local_wheels}
     todo = [Requirement(r) for r in requirements] + [Requirement(n) for n in local]
     done, bundled = set(), []

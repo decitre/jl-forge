@@ -122,6 +122,18 @@ def test_bundle_follows_dependencies(tmp_path, monkeypatch):
     assert "extra_dep-1.0-py3-none-any.whl" in names and "jupyterlab_widgets-3.0-py3-none-any.whl" not in names
 
 
+def test_required_names_evaluates_markers_and_requested_extras(tmp_path):
+    make_wheel(tmp_path, "botocore", requires=["urllib3>=1.25", "jmespath", "awscrt; extra == 'crt'"])
+    make_wheel(tmp_path, "boto3", requires=["botocore", "colorama; sys_platform == 'win32'"])
+    make_wheel(tmp_path, "s3transfer", requires=["botocore[extra-x]", "dep-x; extra == 'other'"])
+    make_wheel(tmp_path, "lib", requires=["numpy; extra == 'extra-x'"])
+    make_wheel(tmp_path, "app", requires=["lib[extra-x]"])
+    # urllib3 needed by botocore; awscrt only with botocore[crt], nobody asks for it; numpy via lib[extra-x]
+    assert wheels.required_names(tmp_path, "3.13.2") == {"urllib3", "jmespath", "botocore", "lib", "numpy"}
+    # a requirement of the project asks for botocore[crt]
+    assert "awscrt" in wheels.required_names(tmp_path, "3.13.2", ["botocore[crt]>=1"])
+
+
 def test_kernel_index_names(tmp_path):
     index = tmp_path / wheels.KERNEL_INDEX
     with pytest.raises(RuntimeError, match="not found"):
