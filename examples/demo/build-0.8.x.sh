@@ -32,7 +32,7 @@ uv build --wheel --out-dir "$WORKSPACE/content" .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name jl-forge-demo --wheel-dir "$WORKSPACE/content"
 jl-forge notebooks "$WORKSPACE/content" --strip --pyodide-install
 jl-forge pyodide-wheels --pyproject pyproject.toml --cache-dir "$CACHE" --out-dir "$WORKSPACE/lite/pypi"
-PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir "$WORKSPACE/lite/pypi" --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
 (cd "$WORKSPACE" && jupyter lite build --apps lab --apps notebooks --apps tree --contents "$WORKSPACE/content" \
   --output-dir "$PUBLIC/pyodide-latest" --lite-dir lite --pyodide "$PYODIDE_DIST")
 

@@ -188,3 +188,29 @@ def test_cli_pyodide_dist(tmp_path, capsys):
         "pyodide/pure_eval-0.2-py3-none-any.whl",
         "pyodide/wcwidth-0.2-py3-none-any.whl",
     ]
+
+
+def test_cli_pyodide_dist_keeps_what_bundled_wheels_require(tmp_path):
+    from test_wheels import make_wheel
+
+    _dist(tmp_path / "pyodide-1.0.tar.bz2")
+    (tmp_path / "pypi").mkdir()
+    make_wheel(tmp_path / "pypi", "botocore", requires=["numpy>=2", "absent", "libgdal; extra == 'geo'"])
+    (tmp_path / "pyproject.toml").write_text('[project]\noptional-dependencies = {maps = ["botocore[geo]"]}\n')
+    args = ["pyodide-dist", "--version", "1.0", "--cache-dir", str(tmp_path), "--out", str(tmp_path / "out.tar.bz2")]
+    main([*args, "--wheels-dir", str(tmp_path / "pypi"), "--pyproject", str(tmp_path / "pyproject.toml")])
+    assert {"numpy", "libgdal"} - set(pyodide.read_lock(tmp_path / "out.tar.bz2")["packages"]) == {"libgdal"}
+    main(
+        [
+            *args,
+            "--wheels-dir",
+            str(tmp_path / "pypi"),
+            "--pyproject",
+            str(tmp_path / "pyproject.toml"),
+            "--extras",
+            "maps",
+        ]
+    )
+    assert {"numpy", "libgdal"} <= set(pyodide.read_lock(tmp_path / "out.tar.bz2")["packages"])
+    main(args)
+    assert "numpy" not in pyodide.read_lock(tmp_path / "out.tar.bz2")["packages"]

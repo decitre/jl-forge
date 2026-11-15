@@ -57,7 +57,7 @@ jl-forge notebooks "$WORKSPACE/content-pyodide" --strip --pyodide-install
 # indexes <lite-dir>/pypi into the site.
 jl-forge pyodide-wheels --pyproject pyproject.toml --cache-dir "$CACHE" --out-dir "$WORKSPACE/lite-pyodide/pypi"
 # Self-host Pyodide: the distribution the kernel loads, pruned to the packages the site uses.
-PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir "$WORKSPACE/lite-pyodide/pypi" --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
 (cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-pyodide" --output-dir "$PUBLIC/pyodide" --lite-dir lite-pyodide \
   --pyodide "$PYODIDE_DIST")
 

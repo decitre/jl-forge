@@ -130,11 +130,15 @@ def _pyodide_dist(args) -> None:
     if args.no_prune:
         shutil.copyfile(tarball, out)
     else:
-        names = set(pyodide.KERNEL_PACKAGES) | set(args.keep)
+        names, requested = set(pyodide.KERNEL_PACKAGES) | set(args.keep), []
         if args.pyproject:
             project = dependencies.load_project(args.pyproject)
             names |= set(dependencies.collect_requirements(project, args.extras))
+            optional = project.get("optional-dependencies", {})
+            requested = [*project.get("dependencies", ()), *(r for e in args.extras for r in optional.get(e, ()))]
         lock = pyodide.cached_lock(version, args.cache_dir)
+        if args.wheels_dir:  # bundled wheels rely on distribution packages pyodide-wheels didn't bundle
+            names |= wheels.required_names(args.wheels_dir, lock["info"]["python"], requested)
         kept, dropped = pyodide.prune(tarball, lock, pyodide.lock_closure(lock, names), out)
         print(f"Pyodide {version}: kept {kept} packages, dropped {dropped}", file=sys.stderr)
     print(out)  # the only stdout line: pass it to --pyodide
@@ -274,6 +278,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--pyproject", type=Path, help="Keep the project's dependencies the distribution provides")
     p.add_argument("--extras", nargs="*", default=[])
     p.add_argument("--keep", nargs="*", default=[], help="More distribution packages the notebooks import")
+    p.add_argument(
+        "--wheels-dir",
+        type=Path,
+        help="Keep the distribution packages the wheels here require, usually pyodide-wheels' --out-dir",
+    )
     p.add_argument("--version", help="Pyodide release (default: the one the installed kernel loads)")
     p.add_argument(
         "--cache-dir",

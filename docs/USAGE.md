@@ -102,13 +102,13 @@ By-name packages already installed in the kernel are skipped, whatever their ver
 Self-hosts Pyodide. By default the Pyodide kernel loads Pyodide and its packages from the jsDelivr CDN at run time, which fails where that CDN is blocked. This writes the distribution the installed kernel loads, pruned to the packages the site uses, and prints its absolute path for `jupyter lite build --pyodide`:
 
 ```bash
-PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide-dist.tar.bz2)
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir workspace/lite-pyodide/pypi --out workspace/pyodide-dist.tar.bz2)
 jupyter lite build ... --pyodide "$PYODIDE_DIST"
 ```
 
 - **Version**: read from the installed `jupyterlite-pyodide-kernel` (`0.29.0` for kernel 0.7.0, `314.0.6` for 0.8.6), so the distribution always matches the kernel. Run it in the Pyodide build venv, or pass `--version`.
 - **Download**: the full release (about 340 MB) from GitHub, once, into `--cache-dir` (default `~/.cache/jl-forge/pyodide`).
-- **Kept packages**: the kernel's startup packages (IPython, matplotlib, micropip, ...), the project's dependencies from `--pyproject`/`--extras`, and `--keep NAME ...`, each with its dependencies from `pyodide-lock.json`. Everything else is left out; the demo's distribution is 23 MB instead of 340 MB. `--no-prune` ships the full release.
+- **Kept packages**: the kernel's startup packages (IPython, matplotlib, micropip, ...), the project's dependencies from `--pyproject`/`--extras`, the dependencies of the wheels `pyodide-wheels` bundled in `--wheels-dir DIR` (pass its `--out-dir`, e.g. urllib3 for a bundled botocore; extras the project asks for, like `botocore[crt]`, count), and `--keep NAME ...`, each with its dependencies from `pyodide-lock.json`. Everything else is left out; the demo's distribution is 23 MB instead of 340 MB. `--no-prune` ships the full release.
 - **Output**: a `.tar.bz2` with the upstream top-level `pyodide/` directory, the only form `--pyodide` copies into the site; pass its absolute path, which the command prints.
 
 A notebook that imports a distribution package nobody declared fails in the browser with a `ModuleNotFoundError` and a 404 for its wheel: add it to the project's dependencies or to `--keep`.
@@ -239,7 +239,7 @@ jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel
 jl-forge notebooks workspace/content-pyodide --strip --pyodide-install
 jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyodide/pypi
 jupyter lite build --lite-dir workspace/lite-pyodide --contents "$PWD/workspace/content-pyodide" --output-dir workspace/public/pyodide \
-  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --out workspace/pyodide-dist.tar.bz2)"
+  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir workspace/lite-pyodide/pypi --out workspace/pyodide-dist.tar.bz2)"
 
 jl-forge self-host workspace/public
 jl-forge dedup workspace/public
