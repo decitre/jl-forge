@@ -74,7 +74,7 @@ It overlaps with `jl-forge pyodide-wheels`, which also turns requirements into w
 | Offline | Packages it doesn't find locally resolve against Pyodide's jsDelivr URL, according to its source | Wheels copied into the site; nothing fetched at run time |
 | Pruning the distribution | No | With `pyodide-dist` |
 
-Use `pyodide-wheels` with kernel 0.7.x, and for sites that must not reach other hosts. With kernel 0.8 and network access, the lock addon resolves conflicting constraints better. Combining it with a `pyodide-dist` distribution is untested.
+Use `pyodide-wheels` with kernel 0.7.x, and for sites that must not reach other hosts. With kernel 0.8 and network access, the lock addon is an alternative: both solve with uv, but it writes a custom `pyodide-lock.json` that the kernel loads from, where `pyodide-wheels` bundles the wheels piplite installs. Combining it with a `pyodide-dist` distribution is untested.
 
 ### xeus-python is on Python 3.13
 

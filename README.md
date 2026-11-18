@@ -89,7 +89,7 @@ A Python API (`jl_forge.dependencies`, `notebooks`, `xeus`, `pyodide`, `wheels`,
 | Project | Relation |
 |:--|:--|
 | [jupyterlite-core](https://github.com/jupyterlite/jupyterlite), [jupyterlite-pyodide-kernel](https://github.com/jupyterlite/pyodide-kernel), [jupyterlite-xeus](https://github.com/jupyterlite/xeus) | The build system and kernels jl-forge drives |
-| jupyterlite-pyodide-kernel's lock addon (0.8+) | Solves a custom `pyodide-lock.json` with uv; resolves better than `pyodide-wheels`, but doesn't prune or make the site offline, and Voici needs kernel 0.7.0; see [COMPATIBILITY.md](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md#pyodide-kernel-08s-lock-addon) |
+| jupyterlite-pyodide-kernel's lock addon (0.8+) | Solves a custom `pyodide-lock.json` with uv, as `pyodide-wheels` does for its wheels, but doesn't prune or make the site offline, and Voici needs kernel 0.7.0; see [COMPATIBILITY.md](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md#pyodide-kernel-08s-lock-addon) |
 | [Voici](https://github.com/voila-dashboards/voici) | Dashboard app jl-forge's sites include |
 | [jupyterlite-sphinx](https://github.com/jupyterlite/jupyterlite-sphinx) | JupyterLite embedded in Sphinx documentation, for docs rather than standalone sites |
 | [Shinylive](https://github.com/posit-dev/py-shinylive), [marimo](https://github.com/marimo-team/marimo) | Static WebAssembly exports of their own app and notebook formats; Shinylive also prunes Pyodide |
