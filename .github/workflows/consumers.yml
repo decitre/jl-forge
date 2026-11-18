@@ -53,9 +53,27 @@ jobs:
       - name: Build xeus-python and Pyodide sites
         working-directory: divelet-ml
         run: ./build.sh
+      # WebKit's install took 0.9 minutes in divelet-ml's CI and over 20 here on some runs, so the two parts are
+      # separate steps (their timings show which is slow) and the download is cached. The cache is saved right
+      # after the install: this job runs over an hour, and a failure at the end would otherwise lose it.
+      - name: Restore Playwright's WebKit
+        id: webkit-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-webkit-${{ runner.os }}-${{ hashFiles('divelet-ml/uv.lock') }}
+      - name: Install WebKit's system packages
+        working-directory: divelet-ml
+        run: uv run --group browser playwright install-deps webkit
       - name: Install WebKit for the iPad smoke test
         working-directory: divelet-ml
-        run: uv run --group browser playwright install --with-deps webkit
+        run: uv run --group browser playwright install webkit
+      - name: Save Playwright's WebKit
+        if: steps.webkit-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ steps.webkit-cache.outputs.cache-primary-key }}
       - name: Browser smoke test
         # divelet-ml's own: every notebook in each kernel and app, with no error output and no other host.
         working-directory: divelet-ml
