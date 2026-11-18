@@ -82,7 +82,7 @@ jl-forge is a small library and CLI extracted from the JupyterLite builds of sev
 
 A Python API (`jl_forge.dependencies`, `notebooks`, `xeus`, `pyodide`, `wheels`, `selfhost`, `artifact`) sits behind the CLI.
 
-**jl-forge is not a replacement for JupyterLite's build system.** Your build script still calls `jupyter lite build`, chooses the apps, and handles application-specific assets.
+**jl-forge is not a replacement for JupyterLite's build system.** Your build script still calls `jupyter lite build`, chooses the apps, and handles application-specific assets. [When to Use jl-forge](https://github.com/decitre/jl-forge/blob/main/docs/SCOPE.md) says what JupyterLite already provides, what jl-forge adds and when you can do without it.
 
 ### Related projects
 
@@ -124,6 +124,7 @@ AI-assisted contributions are welcome, provided contributors understand, review,
 
 - **[Getting Started](https://github.com/decitre/jl-forge/blob/main/docs/DEVELOPMENT.md)** - Development setup, testing, demo build and release
 - **[Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md)** - CLI reference, Python API, [compatibility guarantees](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md#compatibility-guarantees) and a complete build script
+- **[When to Use jl-forge](https://github.com/decitre/jl-forge/blob/main/docs/SCOPE.md)** - What JupyterLite provides, what jl-forge adds, what could move upstream, and two real projects
 - **[Apps, Kernels & Version Constraints](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md)** - Lab, Notebook and Voici on xeus-python and Pyodide: what works, pinned versions and why
 - **[Runtime & Integration](https://github.com/decitre/jl-forge/blob/main/docs/RUNTIME.md)** - What runs where, and integration boundaries
 
