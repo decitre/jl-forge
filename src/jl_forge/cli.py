@@ -181,7 +181,9 @@ def _pyodide_wheels(args) -> None:
         lock["info"]["python"],
         local_wheels=args.wheel,
         strip={canonicalize_name(n) for n in args.strip_requires},
-        index=args.index_url,
+        indexes=tuple(args.index_url or [wheels.PYPI]),
+        simple_indexes=tuple(args.simple_index_url),
+        provided_versions=pyodide.lock_versions(lock),
     )
     print(
         f"{args.out_dir}: {len(bundled)} wheels for Pyodide {version}: "
@@ -317,7 +319,17 @@ def main(argv: list[str] | None = None) -> int:
         metavar="NAME",
         help="Bundle these without their dependency metadata, so piplite installs them alone",
     )
-    p.add_argument("--index-url", default=wheels.PYPI, help="JSON API base URL (default: %(default)s)")
+    p.add_argument(
+        "--index-url",
+        action="append",
+        help=f"JSON API base URL to fetch wheels from; repeat for secondary indexes, tried in order (default: {wheels.PYPI})",
+    )
+    p.add_argument(
+        "--simple-index-url",
+        action="append",
+        default=[],
+        help="Simple API URL uv solves against; repeat for secondary indexes, the first is the default (default: uv's own settings)",
+    )
     p.add_argument("--version", help="Pyodide release (default: the one the installed kernel loads)")
     p.add_argument(
         "--cache-dir",

@@ -2,13 +2,23 @@ import base64
 import hashlib
 import io
 import json
+import shutil
 import zipfile
 
 import pytest
 from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 from jl_forge import pyodide, wheels
 from jl_forge.cli import main
+
+resolve = wheels.resolve
+
+
+@pytest.fixture(autouse=True)
+def no_solve(monkeypatch):
+    """bundle() tests use a fake index; uv would hit the real one. resolve() is tested on its own."""
+    monkeypatch.setattr(wheels, "resolve", lambda *args: {})
 
 
 def make_wheel(directory, name, version="1.0", requires=()):
@@ -160,3 +170,44 @@ def test_cli_pyodide_wheels_always_bundles_kernel_requirements(tmp_path, monkeyp
     monkeypatch.setattr(wheels, "bundle", lambda requirements, *a, **kw: seen.extend(requirements) or [])
     main(["pyodide-wheels", "--version", "1.0", "--out-dir", str(tmp_path), "--require", "tqdm"])
     assert seen == ["comm", "tqdm"]
+
+
+@pytest.mark.skipif(shutil.which("uv") is None, reason="needs uv")
+def test_resolve_rejects_conflicting_requirements_and_skips_provided(tmp_path):
+    a = make_wheel(tmp_path, "a", "1.0", ["c<1", "traitlets>=99"])
+    c = make_wheel(tmp_path, "c", "2.0")
+    with pytest.raises(ValueError, match="conflicting"):
+        resolve([str(a), str(c)], {"traitlets"}, "3.13.0")
+    pins = resolve([str(make_wheel(tmp_path, "b", "1.0", ["traitlets>=99"]))], {"traitlets"}, "3.13.0")
+    assert "traitlets" not in pins
+
+
+def test_bundle_falls_back_to_secondary_index(tmp_path, monkeypatch):
+    wheel = make_wheel(tmp_path, "private", "1.0")
+
+    def pure_wheel(name, spec, index):
+        if index != "https://intranet/pypi":
+            raise ValueError("not here")
+        return name, wheel.name
+
+    monkeypatch.setattr(wheels, "pure_wheel", pure_wheel)
+    monkeypatch.setattr(wheels.cache, "download", lambda url, path: wheel)
+    bundled = wheels.bundle(
+        ["private"],
+        set(),
+        tmp_path / "out",
+        tmp_path / "cache",
+        "3.13.0",
+        indexes=(wheels.PYPI, "https://intranet/pypi"),
+    )
+    assert [w.name for w in bundled] == [wheel.name]
+
+
+def test_bundle_rejects_requirement_the_distribution_cannot_satisfy(tmp_path, monkeypatch):
+    wheel = make_wheel(tmp_path, "needs-numpy", "1.0", ["numpy>=3"])
+    monkeypatch.setattr(wheels, "pure_wheel", lambda name, spec, index: (name, wheel.name))
+    monkeypatch.setattr(wheels.cache, "download", lambda url, path: wheel)
+    args = (["needs-numpy"], {"numpy"}, tmp_path / "out", tmp_path / "cache", "3.13.0")
+    with pytest.raises(ValueError, match=r"numpy>=3.*provides numpy 2\.0"):
+        wheels.bundle(*args, provided_versions={"numpy": Version("2.0")})
+    assert wheels.bundle(*args, provided_versions={"numpy": Version("3.1")})

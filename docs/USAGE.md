@@ -125,11 +125,11 @@ jupyter lite build --lite-dir workspace/lite-pyodide ...
 ```
 
 - **What**: `comm`, which the kernel installs at startup, the requirements from `--pyproject`/`--extras` and `--require REQ ...`, and their dependencies, except packages the Pyodide distribution or the kernel's own index (piplite, its `ipykernel` and `widgetsnbextension` stand-ins) provides. Markers are evaluated for Pyodide's Python. For the demo: ipywidgets, jupyterlab_widgets and comm.
-- **Where from**: the newest pure-Python wheel matching each requirement, from PyPI's JSON API (`--index-url` for another index with the same API), cached in `--cache-dir` (default `~/.cache/jl-forge`). A package with no pure-Python wheel that the distribution lacks can't run in Pyodide: the command fails.
+- **Where from**: the newest pure-Python wheel at the version [uv](https://docs.astral.sh/uv/) solved (see below), from PyPI's JSON API, cached in `--cache-dir` (default `~/.cache/jl-forge`). Repeat `--index-url` for secondary indexes with the same API, such as an intranet mirror: they are tried in order. A package with no pure-Python wheel that the distribution lacks can't run in Pyodide: the command fails.
 - **Wheels from elsewhere**: `--wheel PATH ...` bundles local wheels, such as packages from a private index downloaded with pip, and follows their dependencies.
 - **`--strip-requires NAME ...`**: bundles those packages without their dependency metadata, so piplite installs them alone; for packages whose dependencies can't be satisfied in the browser.
 
-For a package required twice with different constraints, the first requirement decides its version.
+**Resolution**: `uv` must be on `PATH`. It solves all requirements together for Pyodide (`uv pip compile --python-platform wasm32-pyodide2024`, markers for Pyodide's Python), so one version fits every constraint. It uses its own index settings (`UV_INDEX_URL`, `uv.toml`, `pip.conf`), or the `--simple-index-url` URLs (repeatable, the first is the default); give both `--index-url` and `--simple-index-url` for an intranet index. Packages the distribution provides are left out of the solve, and a requirement their version in `pyodide-lock.json` doesn't satisfy (`numpy>=3` against numpy 2.0) fails the command. Incompatible constraints fail it too, with uv's explanation, instead of a broken install. uv's newest Pyodide target is Python 3.12's, which only matters for pure-Python wheels, the only kind bundled.
 
 ### `jl-forge self-host PUBLIC [--cache-dir DIR]`
 
