@@ -114,7 +114,8 @@ The first build downloads the xeus-python environment from conda-forge and emscr
 
 - the notebook runs in the expected kernel (`kernel_info()` output);
 - an ipywidgets button click updates a label and an `Output` widget through the kernel;
-- `with output:` capture from a callback works, except in Voici with xeus-python, where it is expected to stay empty ([voici#127](https://github.com/voila-dashboards/voici/issues/127)); the test fails if that starts working, so the docs can be updated.
+- `with output:` capture from a callback works, except in Voici with xeus-python, where it is expected to stay empty ([voici#127](https://github.com/voila-dashboards/voici/issues/127)); the test fails if that starts working, so the docs can be updated;
+- the site is self-contained: every request to another host is blocked and recorded, and any recorded request fails the test, as does any file of the site answering 4xx (a package pruned from the Pyodide distribution shows up like that). Blocking also proves the kernels start without the network, which counting the responses wouldn't. `test_external_requests_are_recorded` checks the detection itself, from a page and from a worker, where the kernels run.
 
 ```bash
 examples/demo/build.sh
@@ -122,6 +123,30 @@ uv run --group browser pytest examples/demo/smoke_test.py -v
 ```
 
 It needs Google Chrome installed; Playwright drives it through its `chrome` channel, so `playwright install` isn't needed. It serves `workspace/public` itself on a free port, and skips when the demo isn't built. A full run takes about a minute; the first page of each site waits for the kernel download.
+
+### Testing a Site Offline in Your Project
+
+A project that builds its site with jl-forge can check it the same way. Serve the built `public` directory, route at the browser context, not the page (a page route misses requests from workers, where Pyodide and xeus-python load their packages), and fail on anything that left the site:
+
+```python
+context = browser.new_context()
+external = []
+
+def route(route):
+    if route.request.url.startswith(base_url):
+        route.continue_()
+    else:
+        external.append(route.request.url)
+        route.abort()
+
+context.route("**/*", route)
+page = context.new_page()
+page.goto(f"{base_url}/pyodide/lab/index.html?path=notebook.ipynb")
+# ... run the notebook and wait for its output ...
+assert not external
+```
+
+Add a control that fetches a host that can't exist (`https://example.invalid/...`) from the page and from a `Worker`, and asserts it is recorded, so the check can't pass because it sees nothing. Allow a host by passing it to `route.continue_()` if your site really needs one. With the models, data or CDN files your site uses hosted on it (`jl-forge self-host`, or your own build step), the assertion shows what is still fetched from elsewhere. `examples/demo/smoke_test.py` is a full example.
 
 ### Testing the Latest Pyodide Kernel
 
