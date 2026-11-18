@@ -20,12 +20,14 @@ dependencies = ["packaging>=24"]
 
 [project.optional-dependencies]
 xeus = ["jupyterlite-xeus"]
+# uv solves the dependencies of pyodide-wheels; 0.7.11 added the wasm32-pyodide2024 platform
+pyodide = ["uv>=0.7.11"]
 
 [project.scripts]
 jl-forge = "jl_forge.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "pytest-cov>=5", "bumpver>=2024", "ruff>=0.8"]
+dev = ["uv>=0.7.11", "pytest>=8", "pytest-cov>=5", "bumpver>=2024", "ruff>=0.8"]
 browser = ["pytest>=8", "playwright>=1.50"]
 
 [project.urls]

@@ -127,9 +127,14 @@ def resolve(
     them uv uses its configuration (``UV_INDEX_URL``, ``uv.toml``, ``pip.conf``).
     shortcut: uv's newest Pyodide target is wasm32-pyodide2024 (Python 3.12 ABI), fine for pure wheels only.
     """
-    uv = shutil.which("uv")
+    try:
+        import uv as uv_package  # the ``pyodide`` extra: a uv known to support Pyodide
+
+        uv = uv_package.find_uv_bin()
+    except ImportError:
+        uv = shutil.which("uv")
     if uv is None:
-        raise RuntimeError("uv not found on PATH; see https://docs.astral.sh/uv/getting-started/installation/")
+        raise RuntimeError("uv not found: pip install 'jl-forge[pyodide]', or put uv on PATH")
     with tempfile.TemporaryDirectory() as tmp:
         (Path(tmp) / "in.txt").write_text("\n".join(requirements))
         (Path(tmp) / "override.txt").write_text("".join(f"{n}; python_version < '0'\n" for n in sorted(provided)))

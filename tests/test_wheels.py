@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 import shutil
+import sys
 import zipfile
 
 import pytest
@@ -214,6 +215,7 @@ def test_bundle_rejects_requirement_the_distribution_cannot_satisfy(tmp_path, mo
 
 
 def test_resolve_needs_uv(monkeypatch):
+    monkeypatch.setitem(sys.modules, "uv", None)  # makes ``import uv`` fail
     monkeypatch.setattr(wheels.shutil, "which", lambda name: None)
     with pytest.raises(RuntimeError, match="uv not found"):
         resolve(["a"], set(), "3.13.0")
@@ -231,3 +233,12 @@ def test_bundle_reports_every_index_that_failed(tmp_path, monkeypatch):
 def test_lock_versions_canonicalizes_names_and_skips_unparsable():
     lock = {"packages": {"Typing_Extensions": {"version": "4.12.2"}, "odd": {"version": "not a version"}}}
     assert pyodide.lock_versions(lock) == {"typing-extensions": Version("4.12.2")}
+
+
+def test_resolve_falls_back_to_uv_on_path(monkeypatch):
+    monkeypatch.setitem(sys.modules, "uv", None)
+    monkeypatch.setattr(wheels.shutil, "which", lambda name: "/path/uv")
+    monkeypatch.setattr(
+        wheels.subprocess, "run", lambda cmd, **kw: type("R", (), {"returncode": 0, "stdout": "a==1.0\n"})()
+    )
+    assert resolve(["a"], set(), "3.13.0") == {"a": Version("1.0")}

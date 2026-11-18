@@ -20,7 +20,7 @@ jl-forge runs on the build machine (macOS or Linux), from a project's own build 
 **Pyodide site**: project wheel via piplite, bundled wheels, self-hosted and pruned Pyodide.
 
 ```sh
-pip install jl-forge jupyterlite-core jupyterlite-pyodide-kernel
+pip install 'jl-forge[pyodide]' jupyterlite-core jupyterlite-pyodide-kernel   # the extra adds uv
 
 jl-forge clean workspace                          # rm -rf, refused outside the cwd
 jl-forge notebooks workspace/content --strip      # clear code cell outputs
