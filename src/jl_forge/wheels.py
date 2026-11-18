@@ -7,7 +7,10 @@ import base64
 import hashlib
 import json
 import shutil
+import subprocess
 import sys
+import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -15,6 +18,7 @@ from email.parser import Parser
 from pathlib import Path
 
 from packaging.requirements import Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name, parse_wheel_filename
 from packaging.version import InvalidVersion, Version
 
@@ -113,6 +117,52 @@ def pure_wheel(name: str, specifier, index: str = PYPI) -> tuple[str, str]:
     raise ValueError(f"{name}{specifier}: no pure-Python wheel on {index}, and the Pyodide distribution lacks it")
 
 
+def resolve(
+    requirements: list[str], provided: set[str], python_version: str, simple_indexes: tuple[str, ...] = ()
+) -> dict[str, Version]:
+    """Solve ``requirements`` together with uv for Pyodide; incompatible constraints raise ValueError.
+
+    ``provided`` packages are overridden out of the solve, so they don't need a wheel for the platform.
+    ``simple_indexes`` (PEP 503 URLs, the first one the default) replace uv's own index settings; without
+    them uv uses its configuration (``UV_INDEX_URL``, ``uv.toml``, ``pip.conf``).
+    shortcut: uv's newest Pyodide target is wasm32-pyodide2024 (Python 3.12 ABI), fine for pure wheels only.
+    """
+    try:
+        import uv as uv_package  # the ``pyodide`` extra: a uv known to support Pyodide
+
+        uv = uv_package.find_uv_bin()
+    except ImportError:
+        uv = shutil.which("uv")
+    if uv is None:
+        raise RuntimeError("uv not found: pip install 'jl-forge[pyodide]', or put uv on PATH")
+    with tempfile.TemporaryDirectory() as tmp:
+        (Path(tmp) / "in.txt").write_text("\n".join(requirements))
+        (Path(tmp) / "override.txt").write_text("".join(f"{n}; python_version < '0'\n" for n in sorted(provided)))
+        result = subprocess.run(
+            [uv, "pip", "compile", str(Path(tmp) / "in.txt"), "--override", str(Path(tmp) / "override.txt")]
+            + ["--python-platform", "wasm32-pyodide2024", "--python-version", ".".join(python_version.split(".")[:2])]
+            + [arg for i, url in enumerate(simple_indexes) for arg in ("--default-index" if i == 0 else "--index", url)]
+            + ["--only-binary", ":all:", "--no-header", "--no-annotate", "--quiet"],
+            capture_output=True,
+            text=True,
+        )
+    if result.returncode:
+        raise ValueError(f"conflicting requirements:\n{result.stderr.strip()}")
+    pins = (line.split("==") for line in result.stdout.splitlines() if "==" in line)
+    return {canonicalize_name(n): Version(v) for n, v in pins}
+
+
+def _from_any(name: str, specifier, indexes: tuple[str, ...]) -> tuple[str, str]:
+    """``pure_wheel`` from the first of ``indexes`` that has the package, e.g. PyPI, then an intranet index."""
+    errors = []
+    for index in indexes:
+        try:
+            return pure_wheel(name, specifier, index)
+        except (ValueError, urllib.error.URLError) as e:
+            errors.append(str(e))
+    raise ValueError("; ".join(errors))
+
+
 def bundle(
     requirements: list[str],
     provided: set[str],
@@ -121,29 +171,45 @@ def bundle(
     python_version: str,
     local_wheels: list[Path] = (),
     strip: set[str] = frozenset(),
-    index: str = PYPI,
+    indexes: tuple[str, ...] = (PYPI,),
+    simple_indexes: tuple[str, ...] = (),
+    provided_versions: dict[str, Version] = {},
 ) -> list[Path]:
     """Put in ``out_dir`` the wheels ``requirements`` need beyond the ``provided`` packages; return them.
 
     Dependencies are followed with markers evaluated for Pyodide's ``python_version``. For a package
-    required twice, the first requirement decides the version.
+    required twice, uv picks one version for all of them (see ``resolve``); a conflict raises ValueError, and so does a requirement
+    the version of a ``provided`` package in ``provided_versions`` doesn't satisfy.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     env = _pyodide_env(python_version)
     local = {canonicalize_name(parse_wheel_filename(Path(w).name)[0]): Path(w) for w in local_wheels}
     todo = [Requirement(r) for r in requirements] + [Requirement(n) for n in local]
+    # stripped local wheels are left out of the solve: their dependencies are deliberately not installed
+    pins = resolve(
+        [*requirements, *(str(w.resolve()) for n, w in local.items() if n not in strip)],
+        provided,
+        python_version,
+        simple_indexes,
+    )
     done, bundled = set(), []
     while todo:
         req = todo.pop(0)
         name = canonicalize_name(req.name)
-        if name in provided or name in done:
+        if name in provided:
+            have = provided_versions.get(name)
+            if have and not req.specifier.contains(have, prereleases=True):
+                raise ValueError(f"{req} is required but the Pyodide distribution provides {name} {have}")
+            continue
+        if name in done:
             continue
         done.add(name)
         if name in local:
             wheel = local[name]
         else:
-            url, filename = pure_wheel(name, req.specifier, index)
+            specifier = SpecifierSet(f"=={pins[name]}") if name in pins else req.specifier
+            url, filename = _from_any(name, specifier, indexes)
             wheel = cache.download(url, Path(cache_dir) / filename)
         target = out_dir / wheel.name
         if name in strip:

@@ -10,6 +10,7 @@ import tarfile
 from pathlib import Path, PurePosixPath
 
 from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from jl_forge import cache
 
@@ -94,6 +95,17 @@ def read_lock(tarball: Path) -> dict:
             if member.name == LOCK:
                 return json.load(tar.extractfile(member))
     raise ValueError(f"{tarball} has no {LOCK}")
+
+
+def lock_versions(lock: dict) -> dict[str, Version]:
+    """Canonical package name -> version of each package in ``pyodide-lock.json``; unparsable versions are left out."""
+    versions = {}
+    for name, package in lock["packages"].items():
+        try:
+            versions[canonicalize_name(name)] = Version(package["version"])
+        except InvalidVersion:
+            pass
+    return versions
 
 
 def cached_lock(version: str, cache_dir: Path) -> dict:

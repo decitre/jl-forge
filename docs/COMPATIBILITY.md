@@ -70,7 +70,7 @@ It overlaps with `jl-forge pyodide-wheels`, which also turns requirements into w
 | | Lock addon | `pyodide-wheels` |
 |:--|:--|:--|
 | Kernel versions | 0.8 and later | Any, including 0.7.0, the one Voici runs |
-| Dependency resolution | uv solve | Follows `Requires-Dist`; for a package required twice, the first requirement decides the version |
+| Dependency resolution | uv solve | uv solve for Pyodide; incompatible constraints, or a requirement the Pyodide distribution's version doesn't satisfy, fail the build |
 | Offline | Packages it doesn't find locally resolve against Pyodide's jsDelivr URL, according to its source | Wheels copied into the site; nothing fetched at run time |
 | Pruning the distribution | No | With `pyodide-dist` |
 
