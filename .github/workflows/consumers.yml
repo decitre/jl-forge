@@ -1,0 +1,117 @@
+name: Consumer builds
+
+# Builds the projects that use jl-forge with the jl-forge of this commit, to see a change break them before a
+# release does. Nothing is deployed, and it doesn't run on pushes or pull requests (except to test this file).
+on:
+  schedule:
+    - cron: '0 6 * * 1'  # weekly, an hour after build.yml's run
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/consumers.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: consumers-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  divelet-ml:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: jl-forge
+      - uses: actions/checkout@v7
+        with:
+          repository: decitre/divelet-ml
+          path: divelet-ml
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: '3.13'
+      - name: Install micromamba
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "${RUNNER_TEMP}" bin/micromamba
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Cache xeus environments and Pyodide downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/jl-forge
+          key: jl-forge-consumer-divelet-ml-${{ hashFiles('divelet-ml/pyproject.toml', 'divelet-ml/build.sh') }}
+          restore-keys: jl-forge-consumer-divelet-ml-
+      - name: Point build.sh at this jl-forge
+        working-directory: divelet-ml
+        run: |
+          # A single JL_FORGE="jl-forge==x" line; if it changes, fail here instead of testing the released jl-forge.
+          [ "$(grep -c '^JL_FORGE="jl-forge' build.sh)" = 1 ]
+          sed -i "s|^JL_FORGE=.*|JL_FORGE=\"${GITHUB_WORKSPACE}/jl-forge\"|" build.sh
+          grep -n '^JL_FORGE=' build.sh
+      - name: Build xeus-python and Pyodide sites
+        working-directory: divelet-ml
+        run: ./build.sh
+      - name: Install WebKit for the iPad smoke test
+        working-directory: divelet-ml
+        run: uv run --group browser playwright install --with-deps webkit
+      - name: Browser smoke test
+        # divelet-ml's own: every notebook in each kernel and app, with no error output and no other host.
+        working-directory: divelet-ml
+        run: uv run --group browser pytest tests/smoke_test.py -v
+      - name: Upload screenshots of notebooks that did not finish
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: divelet-ml-smoke-failures
+          path: divelet-ml/workspace/smoke-failures/
+          if-no-files-found: ignore
+
+  lmlite:
+    # Build only: lmlite's browser test needs hosted model files, several GB, which aren't worth downloading here.
+    # The build still runs every jl-forge step on both kernels, down to self-host, dedup and the size limit.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: jl-forge
+      - uses: actions/checkout@v7
+        with:
+          repository: decitre/lmlite
+          path: lmlite
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: '3.13'
+      - name: Install micromamba
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "${RUNNER_TEMP}" bin/micromamba
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Python with build, which lite-build.sh runs as `python3 -m build`
+        run: |
+          uv venv "${RUNNER_TEMP}/tools"
+          VIRTUAL_ENV="${RUNNER_TEMP}/tools" uv pip install build
+          echo "${RUNNER_TEMP}/tools/bin" >> "${GITHUB_PATH}"
+      - name: Get month
+        id: month
+        run: echo "month=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+      - name: Cache xeus environments and downloads
+        uses: actions/cache@v6
+        with:
+          # The month matches lite-build.sh's monthly xeus environment, so each new one is saved.
+          path: ~/.cache/jl-forge
+          key: jl-forge-consumer-lmlite-${{ steps.month.outputs.month }}-${{ hashFiles('lmlite/pyproject.toml', 'lmlite/scripts/lite-build.sh', 'lmlite/src/lmlite/llm.js') }}
+          restore-keys: jl-forge-consumer-lmlite-
+      - name: Point lite-build.sh at this jl-forge
+        working-directory: lmlite
+        run: |
+          # Two installs use JL_FORGE_VERSION; if they change, fail here instead of testing the released jl-forge.
+          [ "$(grep -c 'jl-forge\$JL_FORGE_VERSION' scripts/lite-build.sh)" = 1 ]
+          [ "$(grep -c 'jl-forge\[xeus\]\$JL_FORGE_VERSION' scripts/lite-build.sh)" = 1 ]
+          sed -i \
+            -e "s|\"jl-forge\[xeus\]\$JL_FORGE_VERSION\"|\"${GITHUB_WORKSPACE}/jl-forge[xeus]\"|" \
+            -e "s|\"jl-forge\$JL_FORGE_VERSION\"|\"${GITHUB_WORKSPACE}/jl-forge\"|" \
+            scripts/lite-build.sh
+          grep -n 'jl-forge' scripts/lite-build.sh | grep 'pip_cmd install'
+      - name: Build xeus-python and Pyodide sites
+        working-directory: lmlite
+        run: scripts/lite-build.sh

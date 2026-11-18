@@ -171,6 +171,8 @@ The unit test run doesn't collect it (`testpaths = ["tests"]`).
 
 `build.yml` runs `examples/demo/build.sh` and the browser smoke test on pushes, pull requests, manual dispatch and every Monday, and uploads `workspace/public` as the Pages artifact. Only pushes to `main` and manual dispatch on `main` deploy. Its `build-0-8` job builds and smoke-tests the Pyodide 0.8.x site in parallel; it isn't deployed, and its failure doesn't block deployment.
 
+`consumers.yml` builds [divelet-ml](https://github.com/decitre/divelet-ml) and [lmLite](https://github.com/decitre/lmlite) with the jl-forge of the commit, every Monday and on manual dispatch (and on a pull request that changes the workflow). Nothing is deployed, and it doesn't block anything: it shows that a change broke a consumer before a release does. divelet-ml also runs its own browser smoke test; lmLite is built only, since its browser test needs several GB of hosted model files. Each job rewrites the consumer's build script to install jl-forge from the checkout and fails if the line it rewrites has changed; update the `sed` in `consumers.yml` when a consumer's script does.
+
 Pages must be enabled once with GitHub Actions as its source (Settings → Pages), or:
 
 ```bash
