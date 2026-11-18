@@ -2,7 +2,7 @@
 
 Which JupyterLite apps work with which kernel, the package versions that make them work, and where each constraint comes from. Constraints come from upstream projects; jl-forge doesn't add any.
 
-Verified on 2026-11-07 by building [`examples/demo`](../examples/demo) and running its notebook in Chrome: kernel info, an ipywidgets button updating a label, and two `Output` widgets updated from the button callback. [`smoke_test.py`](../examples/demo/smoke_test.py) repeats these checks in CI on every build.
+Verified on 2026-11-18 by building [`examples/demo`](../examples/demo) and running its notebook in Chrome: kernel info, an ipywidgets button updating a label, and two `Output` widgets updated from the button callback. [`smoke_test.py`](../examples/demo/smoke_test.py) repeats these checks in CI on every build.
 
 ## Supported Combinations
 
