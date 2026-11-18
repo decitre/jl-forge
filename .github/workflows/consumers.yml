@@ -18,8 +18,10 @@ concurrency:
 
 jobs:
   divelet-ml:
+    # Its smoke test is every notebook x 2 browsers x 2 kernels x 2 apps. divelet-ml splits it over 12 jobs, whose
+    # test time adds up to about 75 minutes; here it runs in one, so the limit is well above that.
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v7
         with:
