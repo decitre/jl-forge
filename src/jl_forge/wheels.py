@@ -188,7 +188,7 @@ def bundle(
         python_version,
         simple_indexes,
     )
-    done, bundled = {}, []
+    done, bundled = set(), []
     while todo:
         req = todo.pop(0)
         name = canonicalize_name(req.name)
@@ -198,19 +198,14 @@ def bundle(
                 raise ValueError(f"{req} is required but the Pyodide distribution provides {name} {have}")
             continue
         if name in done:
-            # shortcut: no backtracking to an older version that fits both, pin it in the project to resolve
-            if not req.specifier.contains(done[name], prereleases=True):
-                raise ValueError(
-                    f"conflicting requirements: {req} needs a version other than the bundled {name} {done[name]}"
-                )
             continue
+        done.add(name)
         if name in local:
             wheel = local[name]
         else:
             specifier = SpecifierSet(f"=={pins[name]}") if name in pins else req.specifier
             url, filename = _from_any(name, specifier, indexes)
             wheel = cache.download(url, Path(cache_dir) / filename)
-        done[name] = parse_wheel_filename(wheel.name)[1]
         target = out_dir / wheel.name
         if name in strip:
             strip_requires(wheel, target)

@@ -211,3 +211,23 @@ def test_bundle_rejects_requirement_the_distribution_cannot_satisfy(tmp_path, mo
     with pytest.raises(ValueError, match=r"numpy>=3.*provides numpy 2\.0"):
         wheels.bundle(*args, provided_versions={"numpy": Version("2.0")})
     assert wheels.bundle(*args, provided_versions={"numpy": Version("3.1")})
+
+
+def test_resolve_needs_uv(monkeypatch):
+    monkeypatch.setattr(wheels.shutil, "which", lambda name: None)
+    with pytest.raises(RuntimeError, match="uv not found"):
+        resolve(["a"], set(), "3.13.0")
+
+
+def test_bundle_reports_every_index_that_failed(tmp_path, monkeypatch):
+    def pure_wheel(name, spec, index):
+        raise ValueError(f"not on {index}")
+
+    monkeypatch.setattr(wheels, "pure_wheel", pure_wheel)
+    with pytest.raises(ValueError, match="not on a; not on b"):
+        wheels.bundle(["x"], set(), tmp_path / "out", tmp_path / "cache", "3.13.0", indexes=("a", "b"))
+
+
+def test_lock_versions_canonicalizes_names_and_skips_unparsable():
+    lock = {"packages": {"Typing_Extensions": {"version": "4.12.2"}, "odd": {"version": "not a version"}}}
+    assert pyodide.lock_versions(lock) == {"typing-extensions": Version("4.12.2")}
