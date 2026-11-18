@@ -17,7 +17,6 @@ import threading
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
 
 import pytest
 from playwright.sync_api import Page, sync_playwright
@@ -27,7 +26,8 @@ KERNEL_INFO = re.compile(r"(xeus-python|pyodide) on emscripten, Python 3\.\d+\.\
 KERNEL_START_MS = 240_000  # first load downloads the kernel and its packages
 WIDGET_MS = 60_000
 # Everything is self-hosted: Pyodide (pyodide-dist), its PyPI packages (pyodide-wheels), the rest (self-host).
-OTHER_HOSTS = {"xeus": set(), "pyodide": set(), "pyodide-latest": set()}
+# So every request to another host is blocked and recorded in `page.external`: the test fails on any, and the
+# kernels must start without the network, which a mere check of the responses wouldn't prove.
 
 # (site, app page, kernel reported by the notebook, `with output:` capture works)
 PAGES = [
@@ -71,14 +71,25 @@ def browser():
 
 
 @pytest.fixture
-def page(browser):
-    page = browser.new_page()
+def page(browser, base_url):
+    context = browser.new_context()  # not the page: it also covers workers, where the kernels run
+    page = context.new_page()
+    page.external = []
+
+    def route(route):
+        if route.request.url.startswith(base_url):
+            route.continue_()
+        else:
+            page.external.append(route.request.url)
+            route.abort()
+
+    context.route("**/*", route)
     errors = []
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.responses = []
     page.on("response", lambda r: page.responses.append((r.url, r.status)))
     yield page
-    page.close()
+    context.close()
     if errors:
         print("console errors:", *errors[-5:], sep="\n  ")
 
@@ -117,8 +128,18 @@ def test_demo_notebook(page, base_url, site, path, kernel, capture_works):
         page.wait_for_timeout(10_000)
         assert captured.count() == 0, "`with output:` capture now works here: update PAGES and docs/COMPATIBILITY.md"
 
-    # Self-hosted (jl-forge pyodide-dist and self-host): no other host, and no file missing from the site,
-    # which is how a package pruned from the Pyodide distribution would show up.
-    hosts = {urlparse(u).netloc for u, _ in page.responses if not u.startswith(base_url)}
-    assert hosts <= OTHER_HOSTS[site]
+    # Self-hosted (jl-forge pyodide-dist and self-host): no request to another host, and no file missing from
+    # the site, which is how a package pruned from the Pyodide distribution would show up.
+    assert not page.external
     assert not [(u, status) for u, status in page.responses if u.startswith(base_url) and status >= 400]
+
+
+def test_external_requests_are_recorded(page, base_url):
+    """The check above only means something if a request to another host is seen, even from a worker."""
+    page.goto(f"{base_url}/index.html")
+    page.evaluate("fetch('https://example.invalid/page').catch(() => {})")
+    page.evaluate(
+        "new Worker(URL.createObjectURL(new Blob([\"fetch('https://example.invalid/worker').catch(() => {})\"])))"
+    )
+    page.wait_for_timeout(2_000)
+    assert {"https://example.invalid/page", "https://example.invalid/worker"} <= set(page.external)
