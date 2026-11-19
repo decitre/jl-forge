@@ -217,6 +217,10 @@ empack looks for its default configuration under `sys.prefix/share/empack`. Ephe
 
 Both `jl-forge xeus-env` modes need micromamba on `PATH`: the first message comes from jupyterlite-xeus (default mode), the second from `--micromamba` mode.
 
+### `Could not solve for environment specs`, mentioning `pycparser` or `xeus-python-shell-lite`?
+
+micromamba can't solve the specs jl-forge sends it, usually because a dependency of the project conflicts with the xeus-python packages. Run `jl-forge xeus-env --micromamba --verbose` to see the solver output (`-vvv`) and check the specs it was given, then loosen or drop the constraint that conflicts; `--exclude` leaves a dependency out.
+
 ### Voici shows "No kernel available" with Pyodide?
 
 The browser console shows `Shared module @jupyterlab/pluginmanager doesn't exist in shared scope default`. jupyterlite-pyodide-kernel 0.7.1 and later need a module that voici-core 0.10.0's frontend doesn't share. Pin `jupyterlite-pyodide-kernel==0.7.0`, as the demo does; see [COMPATIBILITY.md](COMPATIBILITY.md#voici-with-pyodide-needs-jupyterlite-pyodide-kernel070).
