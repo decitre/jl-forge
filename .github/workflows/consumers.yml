@@ -135,3 +135,40 @@ jobs:
       - name: Build xeus-python and Pyodide sites
         working-directory: lmlite
         run: scripts/lite-build.sh
+
+  here-search-demo:
+    # Build only, xeus-python site; its browser tests aren't run here.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: jl-forge
+      - uses: actions/checkout@v7
+        with:
+          repository: heremaps/here-search-demo
+          path: consumer
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          python-version: '3.13'
+      - name: Install micromamba
+        run: |
+          curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C "${RUNNER_TEMP}" bin/micromamba
+          echo "${RUNNER_TEMP}/bin" >> "${GITHUB_PATH}"
+      - name: Cache xeus environments and downloads
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/jl-forge
+          key: jl-forge-consumer-here-${{ hashFiles('consumer/pyproject.toml', 'consumer/lite-build.sh') }}
+          restore-keys: jl-forge-consumer-here-
+      - name: Point lite-build.sh at this jl-forge
+        working-directory: consumer
+        run: |
+          # The script installs jl-forge from its pyproject's group; add an install of this one right after that
+          # sync. If the line changes, fail here instead of testing the released jl-forge.
+          [ "$(grep -c '^uv sync --only-group xeus_build' lite-build.sh)" = 1 ]
+          sed -i "/^uv sync --only-group xeus_build/a uv pip install \"${GITHUB_WORKSPACE}/jl-forge[xeus]\"" lite-build.sh
+          grep -n -A1 '^uv sync' lite-build.sh
+      - name: Build xeus-python site
+        working-directory: consumer
+        run: ./lite-build.sh
