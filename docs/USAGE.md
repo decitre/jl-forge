@@ -75,7 +75,7 @@ $ jl-forge xeus-mount src/mypkg --prefix workspace/xeus/envs/xeus-kernels
 /abs/path/src/mypkg:/lib/python3.13/site-packages/mypkg
 ```
 
-The Python version comes from the prefix, so it can't drift from the created environment.
+The Python version comes from the prefix, so it can't drift from the created environment. Don't write the `/lib/python3.13/site-packages/...` path by hand in `--XeusAddon.mounts`: it breaks when the environment's Python changes.
 
 ### `jl-forge pyodide-install --pyproject FILE --package-name NAME --wheel-dir DIR [options]`
 
