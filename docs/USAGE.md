@@ -219,6 +219,8 @@ notebooks.write(Path("demo.ipynb"), nb)
 
 Before 1.0, a breaking change to the commands or the public API comes only in a minor release (0.x → 0.y) and is listed in the release notes. From 1.0, it needs a major release. Supported Python, kernel and app versions are in [COMPATIBILITY.md](COMPATIBILITY.md).
 
+So before 1.0, bound the minor version in your dependencies (`jl-forge>=0.8,<0.9`; `~=0.8` would also accept 0.9) and raise the bound when you've read the release notes. An open `jl-forge>=0.8` lets a breaking release reach your build unannounced. To see a break before you upgrade, build your site on a schedule with the development jl-forge, as this repository's [consumer builds](../.github/workflows/consumers.yml) do for the projects that use it.
+
 ## Complete Build Script
 
 [`examples/demo/build.sh`](../examples/demo/build.sh) builds both sites from one project. Its outline:
