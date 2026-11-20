@@ -52,19 +52,24 @@ Each is built and smoke-tested in CI. [Why these versions](https://github.com/de
 ## How It Works
 
 ```
-┌───────────────────────────────────────────┐
-│ pyproject.toml          notebooks/*.ipynb │
-└──────┬──────────────────────────┬─────────┘
-       │ jl-forge                 │ jl-forge notebooks
-┌──────▼────────────────┐ ┌───────▼──────────────────┐
-│ xeus-env / xeus-mount │ │ pyodide-install          │
-│ conda prefix (wasm)   │ │ wheel + install.py       │
-└──────┬────────────────┘ └───────┬──────────────────┘
-       │ jupyter lite build       │ jupyter lite build
-┌──────▼────────────────┐ ┌───────▼──────────────────┐
-│ public/xeus/          │ │ public/pyodide/          │
-└───────────────────────┘ └──────────────────────────┘
-               static site → GitHub Pages
+┌───────────────────────────────────────────────┐
+│  pyproject.toml            notebooks/*.ipynb  │
+└───────────────────────┬───────────────────────┘
+                        │ jl-forge notebooks --strip
+         ┌──────────────┴───────────────┐
+┌────────▼───────────────┐  ┌───────────▼──────────────┐
+│ xeus-env, xeus-mount,  │  │ pyodide-install,         │
+│ xeus-pack-config       │  │ pyodide-wheels,          │
+│ conda prefix (wasm)    │  │ pyodide-dist             │
+│                        │  │ wheel + install.py       │
+└────────┬───────────────┘  └───────────┬──────────────┘
+         │ jupyter lite build           │ jupyter lite build
+┌────────▼───────────────┐  ┌───────────▼──────────────┐
+│ public/xeus/           │  │ public/pyodide/          │
+└────────┬───────────────┘  └───────────┬──────────────┘
+         └──────────────┬───────────────┘
+                        │ jl-forge self-host, dedup, size
+              static site → GitHub Pages
 ```
 
 ## Documentation
