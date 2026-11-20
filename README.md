@@ -49,6 +49,8 @@ The [Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md) h
 
 Each is built and smoke-tested in CI. [Why these versions](https://github.com/decitre/jl-forge/blob/main/docs/COMPATIBILITY.md), and how [Voici](https://github.com/decitre/jl-forge/blob/main/docs/VOICI.md) fits.
 
+> **Python 3.14:** a xeus-python site runs Python 3.13 for now: every [xeus-python build on emscripten-forge](https://prefix.dev/channels/emscripten-forge-4x/packages/xeus-python) targets 3.13 (`cp313`), though the channel has Python 3.14. Pyodide sites can run 3.14, but not with Voici.
+
 ## How It Works
 
 ```
