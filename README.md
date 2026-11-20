@@ -7,6 +7,7 @@
 [![Coverage][codecov-badge]][codecov-url]
 [![xeus-badge][xeus-badge]][xeus-url]
 [![pyodide-badge][pyodide-badge]][pyodide-url]
+[![voici-badge][voici-badge]][voici-url]
 
 Package version: `0.8.0`
 
@@ -102,5 +103,7 @@ Built on [JupyterLite](https://jupyterlite.readthedocs.io/), [xeus-python](https
 [ci-url]: https://github.com/decitre/jl-forge/actions/workflows/build.yml
 [pyodide-badge]: https://jupyterlite.rtfd.io/en/latest/_static/badge.svg
 [xeus-badge]: https://img.shields.io/badge/try-xeus--python-f7dc1e.svg
+[voici-badge]: https://jupyterlite.rtfd.io/en/latest/_static/badge-launch.svg
+[voici-url]: https://decitre.github.io/jl-forge/xeus/voici/render/demo.html
 [xeus-url]: https://decitre.github.io/jl-forge/xeus/lab/index.html?path=demo.ipynb
 [pyodide-url]: https://decitre.github.io/jl-forge/pyodide/lab/index.html?path=demo.ipynb
