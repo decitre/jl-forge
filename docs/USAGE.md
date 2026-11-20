@@ -254,6 +254,32 @@ jl-forge urls workspace/public
 
 Application-specific steps (credentials, model files) stay in your script.
 
+## GitLab Pages
+
+jl-forge has nothing GitHub-specific: a GitLab job runs the same build script. Pages needs a job named `pages` that leaves the site in `public/`, and its artifact limit counts hardlinked files once, so check it with `size --links-once`:
+
+```yaml
+pages:
+  image: python:3.13
+  cache:
+    key: jl-forge
+    paths: [.cache/jl-forge]          # xeus environments and downloads, from --cache-dir
+  script:
+    - curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | tar -xj -C /usr/local bin/micromamba   # xeus only
+    - pip install 'jl-forge[xeus]>=0.8,<0.9' jupyterlite-core       # your kernel packages, in the same environment
+    - ./build.sh                                                     # your script: ends with self-host and dedup, writes workspace/public
+    - jl-forge size workspace/public --max 1000M --links-once
+    - mv workspace/public public
+  artifacts:
+    paths: [public]
+```
+
+Behind a package mirror, point pip at it with the `PIP_INDEX_URL` variable. The xeus build also needs micromamba and the conda-forge and emscripten-forge channels, so a runner without internet access needs mirrors for them too. Pass `--cache-dir .cache/jl-forge` to `xeus-env` so the cache path above is the one it uses.
+
+The published site is readable by everyone who can open the Pages site. Don't write credentials or tokens into a directory your script copies into the site contents.
+
+This recipe is derived from the GitHub one and the build scripts; it isn't run in this repository's CI.
+
 ## Voici Dashboards
 
 [Voici](https://github.com/voila-dashboards/voici) renders each notebook as a dashboard page, run in the browser by the site's kernel. jl-forge needs nothing specific: install `voici-core` in the build venv and list `--apps voici` in `jupyter lite build`. [VOICI.md](VOICI.md) has the setup, the version constraints and the known problems.
