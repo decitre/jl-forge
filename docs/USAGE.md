@@ -256,15 +256,4 @@ Application-specific steps (credentials, model files) stay in your script.
 
 ## Voici Dashboards
 
-[Voici](https://github.com/voila-dashboards/voici) renders each notebook as a dashboard page, `voici/render/<notebook>.html`, executed in the browser by the site's kernel. jl-forge needs nothing specific; enable it in the `jupyter lite build` step:
-
-1. Install `voici-core` in the build venv, next to the kernel package.
-2. List the apps explicitly. Voici is not built by default, and `--apps` replaces the defaults:
-   ```bash
-   jupyter lite build --apps lab --apps notebooks --apps tree --apps voici ...
-   ```
-   The `[static] app 'voici' is not one of: ...` warning is harmless.
-
-`jl-forge urls` lists the Voici pages it finds.
-
-Voici constrains package versions, notably for the Pyodide kernel and for widgets; see [Apps, Kernels & Version Constraints](COMPATIBILITY.md).
+[Voici](https://github.com/voila-dashboards/voici) renders each notebook as a dashboard page, run in the browser by the site's kernel. jl-forge needs nothing specific: install `voici-core` in the build venv and list `--apps voici` in `jupyter lite build`. [VOICI.md](VOICI.md) has the setup, the version constraints and the known problems.
