@@ -37,7 +37,7 @@ pip install 'jl-forge[pyodide]' jupyterlite-core jupyterlite-pyodide-kernel    #
 
 `jupyter lite build` builds the site; jl-forge does what surrounds it, from your build script: dependencies from `pyproject.toml`, Pyodide pruned from 340 MB to 23 MB, xeus environments packed and cached, no request to other hosts, and a size check for Pages limits. It doesn't replace `jupyter lite build`; [when to use jl-forge](https://github.com/decitre/jl-forge/blob/main/docs/SCOPE.md) says when you can do without it.
 
-The [Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md) has each command and a complete script for both kernels; the demo's [`build.sh`](https://github.com/decitre/jl-forge/blob/main/examples/demo/build.sh) is the smallest real one to adapt.
+The [Usage Guide](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md) has each command, a complete script for both kernels and a [GitLab Pages job](https://github.com/decitre/jl-forge/blob/main/docs/USAGE.md#gitlab-pages); the demo's [`build.sh`](https://github.com/decitre/jl-forge/blob/main/examples/demo/build.sh) is the smallest real one to adapt.
 
 ## Compatibility
 
@@ -52,9 +52,9 @@ Each is built and smoke-tested in CI. [Why these versions](https://github.com/de
 ## How It Works
 
 ```
-┌───────────────────────────────────────────────┐
-│  pyproject.toml            notebooks/*.ipynb  │
-└───────────────────────┬───────────────────────┘
+┌──────────────────────────────────────────────────────┐
+│  pyproject.toml                   notebooks/*.ipynb  │
+└───────────────────────┬──────────────────────────────┘
                         │ jl-forge notebooks --strip
          ┌──────────────┴───────────────┐
 ┌────────▼───────────────┐  ┌───────────▼──────────────┐
@@ -69,7 +69,7 @@ Each is built and smoke-tested in CI. [Why these versions](https://github.com/de
 └────────┬───────────────┘  └───────────┬──────────────┘
          └──────────────┬───────────────┘
                         │ jl-forge self-host, dedup, size
-              static site → GitHub Pages
+           static site → GitHub Pages or GitLab Pages
 ```
 
 ## Documentation
