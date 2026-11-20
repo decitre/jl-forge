@@ -252,3 +252,19 @@ The self-hosted distribution lacks `python_stdlib.zip`, the standard library. `p
 ### `expected one python3.*/site-packages` from `xeus-mount`?
 
 `--prefix` must be the environment itself (`<root-prefix>/envs/xeus-kernels`), not the root prefix, and the environment must be created first.
+
+## Feedback and Contributions
+
+jl-forge is an early-stage project. Feedback is particularly welcome on:
+
+- Build steps worth sharing that are still scripted per project.
+- JupyterLite, jupyterlite-xeus or Pyodide kernel changes that break the build.
+- Support for other apps (Voici, Notebook) and hosting targets.
+
+Please share suggestions, bug reports, and use cases through [GitHub Issues](https://github.com/decitre/jl-forge/issues).
+
+### AI-Assisted Development
+
+Parts of this project were developed with the assistance of generative AI tools. The maintainer is responsible for the architecture, review, testing, and published code.
+
+AI-assisted contributions are welcome, provided contributors understand, review, and test their changes and take responsibility for their submissions.

@@ -51,6 +51,21 @@ These steps could belong in the JupyterLite projects, and jl-forge would then sh
 
 `dedup`, `size`, `clean`, `notebooks` and `urls` serve static-hosting workflows and have no obvious upstream home.
 
+## Related Projects
+
+| Project | Relation |
+|:--|:--|
+| [jupyterlite-core](https://github.com/jupyterlite/jupyterlite), [jupyterlite-pyodide-kernel](https://github.com/jupyterlite/pyodide-kernel), [jupyterlite-xeus](https://github.com/jupyterlite/xeus) | The build system and kernels jl-forge drives |
+| jupyterlite-pyodide-kernel's lock addon (0.8+) | Solves a custom `pyodide-lock.json` with uv, as `pyodide-wheels` does for its wheels, but doesn't prune or make the site offline, and Voici needs kernel 0.7.0; see [COMPATIBILITY.md](COMPATIBILITY.md#pyodide-kernel-08s-lock-addon) |
+| [Voici](https://github.com/voila-dashboards/voici) | Dashboard app jl-forge's sites include |
+| [jupyterlite-sphinx](https://github.com/jupyterlite/jupyterlite-sphinx) | JupyterLite embedded in Sphinx documentation, for docs rather than standalone sites |
+| [Shinylive](https://github.com/posit-dev/py-shinylive), [marimo](https://github.com/marimo-team/marimo) | Static WebAssembly exports of their own app and notebook formats; Shinylive also prunes Pyodide |
+| [pyodide-pack](https://github.com/pyodide/pyodide-pack) | Shrinks Pyodide apps by detecting the modules they use at run time, a finer cut than pruning whole packages |
+
+<!-- Also related, not listed: jupyterlite-pyodide-lock (standalone lock addon,
+     https://github.com/deathbeds/jupyterlite-pyodide-lock), repo2jupyterlite
+     (https://pypi.org/project/repo2jupyterlite/). -->
+
 ## Examples
 
 - **[lmLite](https://github.com/decitre/lmlite)** runs transformer models in the browser. It builds a xeus-python site and a Pyodide site, mounts or installs its package, self-hosts Transformers.js and optional model files next to jl-forge's own self-hosting, and checks the Pyodide site on kernel 0.8.x. Its [`scripts/lite-build.sh`](https://github.com/decitre/lmlite/blob/main/scripts/lite-build.sh) is a full build script.
