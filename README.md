@@ -9,7 +9,7 @@
 [![pyodide-badge][pyodide-badge]][pyodide-url]
 [![voici-badge][voici-badge]][voici-url]
 
-Package version: `0.9.0`
+Package version: `0.10.0`
 
 **Build steps for JupyterLite sites** — turn a Python project and its notebooks into version-matched, pruned and fully offline xeus-python or Pyodide sites, sized for GitHub or GitLab Pages.
 
