@@ -99,6 +99,8 @@ def _xeus_env(args) -> None:
     specs = dependencies.to_specs(reqs)
     print(specs, file=sys.stderr)
     options = dict(micromamba=args.micromamba, verbose=args.verbose)
+    if args.channel:
+        options["channels"] = args.channel
     with _stdout_to_stderr():  # micromamba and jupyterlite-xeus print to stdout
         if args.cache_dir:
             prefix = xeus.cached_env(args.cache_dir, specs, **options)
@@ -259,6 +261,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--pyproject", type=Path, required=True)
     p.add_argument("--extras", nargs="*", default=[])
     p.add_argument("--exclude", nargs="*", default=[])
+    p.add_argument(
+        "--channel",
+        action="append",
+        metavar="URL",
+        help="Conda channel, in priority order; repeat it. Replaces the default channels "
+        f"({', '.join(xeus.XEUS_CHANNELS)})",
+    )
     p.add_argument(
         "--micromamba", action="store_true", help="Run micromamba from jl-forge rather than through jupyterlite-xeus"
     )

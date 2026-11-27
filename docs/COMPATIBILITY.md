@@ -84,6 +84,13 @@ The Python version is whatever the conda solve picks on the configured channels:
 - emscripten-forge-dev (used up to jl-forge 0.5): Python 3.13.1 only; xeus-python up to 0.17.8.
 - The [python recipe](https://github.com/emscripten-forge/recipes/blob/main/recipes/recipes_emscripten/python/recipe.yaml) is at 3.14.3; xeus-python on 3.14 will follow its [recipe](https://github.com/emscripten-forge/recipes/blob/main/recipes/recipes_emscripten/xeus-python/recipe.yaml). `jl-forge xeus-mount` derives the site-packages path from the prefix, so nothing in jl-forge changes when it does.
 
+### pyarrow misreads `int32` arrays on xeus-python in emscripten-forge-4x
+
+With pyarrow 23.0.0 and numpy 2.5.4 from emscripten-forge-4x, `pa.array()` of a numpy `int32` array returns an `int64` array with wrong values, and `take()` with numpy indices raises `ArrowIndexError`. On 32-bit wasm `np.intp`, `np.arange` and `np.delete` return `int32`, so ordinary pandas 3 calls on string columns fail, such as `GeoDataFrame.__geo_interface__` in GeoPandas. `int64` indices and Python lists work. Reported as [arrow#55734](https://github.com/apache/arrow/issues/55734) (open).
+
+- Pyodide (pyarrow 22.0.0) and xeus-python on emscripten-forge-6x (pyarrow 26.0.1, Python 3.14) don't show it. Whether the fix is in pyarrow or in the emscripten-forge build is not known.
+- Workarounds on 4x: convert indices with `.astype("int64")` before `take`, or build the xeus environment from the 6x channel with [`xeus-env --channel`](USAGE.md#jl-forge-xeus-env---root-prefix-dir----cache-dir-dir---pyproject-file-options). Only a bare notebook was tried on 6x, not the demo.
+
 ### Cross-origin isolated xeus-python sites need pyjs 4.1
 
 Served with COOP/COEP headers (`crossOriginIsolated` is true), the xeus-python kernel from emscripten-forge-dev fails to start: pyodide-http then calls `to_js(..., dict_converter=...)`, which pyjs supports only from 4.1.0 ([xeus#378](https://github.com/jupyterlite/xeus/issues/378), [pyjs#138](https://github.com/emscripten-forge/pyjs/pull/138)). emscripten-forge-4x brings pyjs 4.1.0 and xeus-python 0.19.0. Verified with JupyterLab, Notebook and Voici in Chrome (COEP `require-corp` and `credentialless`) and WebKit (`require-corp`).

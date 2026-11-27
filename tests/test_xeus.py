@@ -61,6 +61,21 @@ def test_cli_xeus_env_delegates_to_jupyterlite_xeus(monkeypatch, tmp_path):
     assert kwargs["specs"] == ["xeus-python>=0.17", "xeus-python-shell", "xeus-python-shell-lite", "numpy"]
 
 
+def test_cli_xeus_env_channel_replaces_the_defaults(monkeypatch, tmp_path):
+    received = []
+    monkeypatch.setattr(xeus, "create_env", lambda root, specs, **kwargs: received.append(kwargs) or tmp_path)
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text('[project]\ndependencies = ["numpy"]\n')
+    channels = ["https://conda.anaconda.org/conda-forge", "https://repo.prefix.dev/emscripten-forge/6x"]
+    args = ["xeus-env", "--root-prefix", str(tmp_path), "--pyproject", str(pyproject)]
+
+    cli.main([*args, "--channel", channels[0], "--channel", channels[1]])
+    cli.main(args)
+
+    assert received[0]["channels"] == channels
+    assert "channels" not in received[1]  # the default is create_env's
+
+
 def test_mount_uses_installed_python(tmp_path):
     prefix = tmp_path / "env"
     (prefix / "lib" / "python3.13" / "site-packages").mkdir(parents=True)
