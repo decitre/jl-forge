@@ -51,6 +51,14 @@ def site_urls(public: Path, base_url: str = "http://localhost:8000") -> list[str
     return urls
 
 
+def site_extensions(site: Path) -> list[str]:
+    """Names of the federated extensions in ``site``, from ``extensions/**/package.json`` (scoped names included)."""
+    root = Path(site) / "extensions"
+    return sorted(
+        p.parent.relative_to(root).as_posix() for p in [*root.glob("*/package.json"), *root.glob("@*/*/package.json")]
+    )
+
+
 def _clean(args) -> None:
     reset_workspace(args.workspace, args.root)
 
@@ -194,6 +202,19 @@ def _pyodide_wheels(args) -> None:
 def _urls(args) -> None:
     print(f"Serve: python -m http.server {args.port} --directory {args.public}")
     print("\n".join(site_urls(args.public, f"http://localhost:{args.port}")))
+
+
+def _extensions(args) -> None:
+    found = [args.public] if (args.public / "jupyter-lite.json").is_file() else sites(args.public)
+    if not found:
+        raise ValueError(f"no JupyterLite site in {args.public}")
+    missing = []
+    for site in found:
+        names = site_extensions(site)
+        print(f"{site}: {', '.join(names) or 'none'}")
+        missing += [f"{site}: {n}" for n in args.require if n not in names]
+    if missing:
+        raise ValueError("missing federated extensions: " + "; ".join(missing))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -371,6 +392,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=_urls)
+
+    p = sub.add_parser(
+        "extensions", help="List the federated extensions of each built site; fail if a required one is missing"
+    )
+    p.add_argument("public", type=Path, help="Site output directory, or a directory of sites")
+    p.add_argument(
+        "--require",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="Extension every site must have, e.g. anywidget (repeatable)",
+    )
+    p.set_defaults(func=_extensions)
 
     args = parser.parse_args(argv)
     try:

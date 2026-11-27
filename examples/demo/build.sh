@@ -35,7 +35,10 @@ jl-forge notebooks "$WORKSPACE/content-xeus" --strip
 XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir "$CACHE/xeus" --pyproject pyproject.toml)
 mounts=$(jl-forge xeus-mount src/jl_forge_demo --prefix "$XEUS_PREFIX")
 EMPACK_CONFIG=$(jl-forge xeus-pack-config --out "$WORKSPACE/empack.yml")
-(cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-xeus" --output-dir "$PUBLIC/xeus" --lite-dir lite-xeus \
+# Each build runs from its own directory: its doit database (.jupyterlite.doit.db) lives in the
+# working directory, and a shared one lets the second build skip copying extensions.
+mkdir -p "$WORKSPACE/lite-xeus"
+(cd "$WORKSPACE/lite-xeus" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-xeus" --output-dir "$PUBLIC/xeus" \
   --XeusAddon.prefix="$XEUS_PREFIX" \
   --XeusAddon.empack_config="$EMPACK_CONFIG" \
   --XeusAddon.mount_jupyterlite_content=True \
@@ -54,11 +57,11 @@ uv build --wheel --out-dir "$WORKSPACE/content-pyodide" .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name jl-forge-demo --wheel-dir "$WORKSPACE/content-pyodide"
 jl-forge notebooks "$WORKSPACE/content-pyodide" --strip --pyodide-install
 # Bundle the wheels piplite would fetch from PyPI (ipywidgets and its dependencies); jupyter lite build
-# indexes <lite-dir>/pypi into the site.
+# indexes pypi/ of the directory it runs from into the site.
 jl-forge pyodide-wheels --pyproject pyproject.toml --cache-dir "$CACHE" --out-dir "$WORKSPACE/lite-pyodide/pypi"
 # Self-host Pyodide: the distribution the kernel loads, pruned to the packages the site uses.
 PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir "$WORKSPACE/lite-pyodide/pypi" --cache-dir "$CACHE/pyodide" --out "$WORKSPACE/pyodide-dist.tar.bz2")
-(cd "$WORKSPACE" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-pyodide" --output-dir "$PUBLIC/pyodide" --lite-dir lite-pyodide \
+(cd "$WORKSPACE/lite-pyodide" && jupyter lite build "${APPS[@]}" --contents "$WORKSPACE/content-pyodide" --output-dir "$PUBLIC/pyodide" \
   --pyodide "$PYODIDE_DIST")
 
 cat > "$PUBLIC/index.html" <<'HTML'
@@ -81,5 +84,8 @@ jl-forge self-host "$PUBLIC" --cache-dir "$CACHE/self-host"
 # uploader stores every copy in full, so the limit below counts them all.
 jl-forge dedup "$PUBLIC"
 jl-forge size "$PUBLIC" --max 1G
+
+# Fail if a build left out the widget extension (e.g. two builds sharing .jupyterlite.doit.db).
+jl-forge extensions "$PUBLIC/xeus" --require @jupyter-widgets/jupyterlab-manager
 
 jl-forge urls "$PUBLIC"

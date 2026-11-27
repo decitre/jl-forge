@@ -36,3 +36,4 @@ Each kernel builds from its own venv, so a Voici site on both kernels looks like
 | "No kernel available" on a Pyodide dashboard, and `Shared module @jupyterlab/pluginmanager doesn't exist` in the console | The Pyodide kernel is newer than 0.7.0; [pin it](DEVELOPMENT.md#voici-shows-no-kernel-available-with-pyodide) |
 | A widget doesn't render in JupyterLab or Notebook on Pyodide (`Exception opening new comm`) | `jupyterlab_widgets` is missing from the Pyodide build venv |
 | An `Output` widget stays empty on xeus-python | Voici's capture limit above |
+| `No version of module anywidget is registered` on a xeus-python Voici site built after a xeus-python Lab site | Both builds ran from the same directory and shared `.jupyterlite.doit.db`; [build each site from its own directory](USAGE.md#complete-build-script) |

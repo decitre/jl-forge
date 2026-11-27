@@ -213,6 +213,10 @@ empack looks for its default configuration under `sys.prefix/share/empack`. Ephe
 
 `jupyterlite-xeus` and `jupyterlite-pyodide-kernel` are installed in the same environment. Build each site from its own venv.
 
+### The second xeus site has fewer federated extensions than the first?
+
+Both builds ran from the same working directory, so they share `.jupyterlite.doit.db` and the second skips the copy tasks as up to date. `--lite-dir` doesn't move the database. Run each build from its own directory, with absolute paths ([details](USAGE.md#complete-build-script)).
+
 ### `micromamba is needed…` or `micromamba not found on PATH`?
 
 Both `jl-forge xeus-env` modes need micromamba on `PATH`: the first message comes from jupyterlite-xeus (default mode), the second from `--micromamba` mode.
