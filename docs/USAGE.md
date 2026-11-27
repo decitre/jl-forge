@@ -50,10 +50,11 @@ XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus 
 |:-------|:-------|
 | `--extras A B` | Add `[project.optional-dependencies]` groups; unknown extras only warn |
 | `--exclude A B` | Leave packages out |
+| `--channel URL` | A conda channel, in priority order; repeat it. Replaces the default channels, so list conda-forge too |
 | `--micromamba` | Call micromamba directly instead of `jupyterlite_xeus.create_conda_env` |
 | `--verbose` | Pass `-vvv` to micromamba (with `--micromamba`) |
 
-Channels are conda-forge and emscripten-forge-4x.
+The default channels are conda-forge and emscripten-forge-4x. To build from another emscripten-forge channel, such as 6x, list them all: `--channel https://conda.anaconda.org/conda-forge --channel https://repo.prefix.dev/emscripten-forge/6x`. A different channel can change the Python version and the package builds (see [COMPATIBILITY](COMPATIBILITY.md#pyarrow-misreads-int32-arrays-on-xeus-python-in-emscripten-forge-4x)); the demo is only tested on the default.
 
 ### `jl-forge xeus-pack-config --out FILE`
 
