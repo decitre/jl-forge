@@ -121,7 +121,7 @@ Bundles into the site the wheels piplite would otherwise fetch from PyPI in the 
 
 ```bash
 jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyodide/pypi
-jupyter lite build --lite-dir workspace/lite-pyodide ...
+(cd workspace/lite-pyodide && jupyter lite build ...)   # run from the lite directory, so its doit database stays there
 ```
 
 - **What**: `comm`, which the kernel installs at startup, the requirements from `--pyproject`/`--extras` and `--require REQ ...`, and their dependencies, except packages the Pyodide distribution or the kernel's own index (piplite, its `ipykernel` and `widgetsnbextension` stand-ins) provides. Markers are evaluated for Pyodide's Python. For the demo: ipywidgets, jupyterlab_widgets and comm.
@@ -176,6 +176,15 @@ http://localhost:8000/xeus/lab/index.html?path=demo.ipynb
 ...
 ```
 
+### `jl-forge extensions PUBLIC [--require NAME]...`
+
+Prints the federated extensions of `PUBLIC` if it is a site (it contains `jupyter-lite.json`), else of each of its subdirectories that is one, read from `extensions/*/package.json`. Each `--require` names an extension every site listed must have, and the command fails if one is missing. Point it at one site's directory to require an extension of that site only. It catches a build that skipped copying extensions, such as [two builds sharing a doit database](#complete-build-script):
+
+```bash
+$ jl-forge extensions workspace/public/apps --require anywidget --require @jupyter-widgets/jupyterlab-manager
+workspace/public/apps: @jupyter-widgets/jupyterlab-manager, @jupyterlite/xeus-extension, anywidget, ...
+```
+
 ## Dependency Handling
 
 Both kernels read the same `pyproject.toml`:
@@ -227,15 +236,17 @@ So before 1.0, bound the minor version in your dependencies (`jl-forge>=0.8,<0.9
 
 ```bash
 jl-forge clean workspace
+WS="$PWD/workspace"   # absolute: each build below runs from its own directory
 
 # xeus-python, from a venv with jupyterlite-core + jupyterlite-xeus
 jl-forge notebooks workspace/content-xeus --strip
 XEUS_PREFIX=$(jl-forge xeus-env --micromamba --cache-dir ~/.cache/jl-forge/xeus --pyproject pyproject.toml)
-jupyter lite build --contents "$PWD/workspace/content-xeus" --output-dir workspace/public/xeus \
+mkdir -p "$WS/lite-xeus"
+(cd "$WS/lite-xeus" && jupyter lite build --contents "$WS/content-xeus" --output-dir "$WS/public/xeus" \
   --XeusAddon.prefix="$XEUS_PREFIX" \
-  --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out workspace/empack.yml)" \
+  --XeusAddon.empack_config="$(jl-forge xeus-pack-config --out "$WS/empack.yml")" \
   --XeusAddon.mount_jupyterlite_content=True \
-  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$XEUS_PREFIX")"   # only if notebooks import your own package
+  --XeusAddon.mounts="$(jl-forge xeus-mount src/mypkg --prefix "$XEUS_PREFIX")")   # only if notebooks import your own package
 
 # Pyodide, from a venv with jupyterlite-core + jupyterlite-pyodide-kernel
 # only if notebooks import your own package: its wheel, install.py and install line (else just --strip)
@@ -243,8 +254,8 @@ uv build --wheel --out-dir workspace/content-pyodide .
 jl-forge pyodide-install --pyproject pyproject.toml --package-name mypkg --wheel-dir workspace/content-pyodide
 jl-forge notebooks workspace/content-pyodide --strip --pyodide-install
 jl-forge pyodide-wheels --pyproject pyproject.toml --out-dir workspace/lite-pyodide/pypi
-jupyter lite build --lite-dir workspace/lite-pyodide --contents "$PWD/workspace/content-pyodide" --output-dir workspace/public/pyodide \
-  --pyodide "$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir workspace/lite-pyodide/pypi --out workspace/pyodide-dist.tar.bz2)"
+PYODIDE_DIST=$(jl-forge pyodide-dist --pyproject pyproject.toml --wheels-dir workspace/lite-pyodide/pypi --out workspace/pyodide-dist.tar.bz2)
+(cd "$WS/lite-pyodide" && jupyter lite build --contents "$WS/content-pyodide" --output-dir "$WS/public/pyodide" --pyodide "$PYODIDE_DIST")
 
 jl-forge self-host workspace/public
 jl-forge dedup workspace/public
@@ -253,6 +264,8 @@ jl-forge urls workspace/public
 ```
 
 Application-specific steps (credentials, model files) stay in your script.
+
+**Build each site from its own directory.** `jupyter lite build` keeps its doit database, `.jupyterlite.doit.db`, in the working directory; `--lite-dir` and `--output-dir` don't move it. A second build from the same directory reads the first one's task state and can skip tasks, such as copying the federated extensions of a xeus environment, with no error: the site is smaller and its widgets fail in the browser. The outline above builds each site from its own directory, with absolute `--contents` and `--output-dir` paths, so a second xeus-based site (JupyterLab and Voici, say) gets its own database too: `(cd "$WS/lite-voici" && jupyter lite build ...)`. Check the result with `jl-forge extensions PUBLIC --require <name>`.
 
 ## GitLab Pages
 

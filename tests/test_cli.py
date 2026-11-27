@@ -51,3 +51,25 @@ def test_site_urls(tmp_path):
         f"{base}/xeus/notebooks/index.html?path=sub/a%20b.ipynb",
     ]
     assert site_urls(tmp_path / "xeus", base + "/")[0] == f"{base}/lab/index.html?path=demo.ipynb"
+
+
+def test_extensions_require(tmp_path, capsys):
+    from jl_forge.cli import main, site_extensions
+
+    for name in ("anywidget", "@jupyter-widgets/jupyterlab-manager"):
+        (tmp_path / "extensions" / name).mkdir(parents=True)
+        (tmp_path / "extensions" / name / "package.json").touch()
+    (tmp_path / "jupyter-lite.json").touch()
+    assert site_extensions(tmp_path) == ["@jupyter-widgets/jupyterlab-manager", "anywidget"]
+    assert main(["extensions", str(tmp_path), "--require", "anywidget"]) == 0
+    with pytest.raises(SystemExit):
+        main(["extensions", str(tmp_path), "--require", "nope"])
+    assert "missing federated extensions" in capsys.readouterr().err
+
+
+def test_extensions_no_site(tmp_path, capsys):
+    from jl_forge.cli import main
+
+    with pytest.raises(SystemExit):
+        main(["extensions", str(tmp_path)])
+    assert "no JupyterLite site" in capsys.readouterr().err
