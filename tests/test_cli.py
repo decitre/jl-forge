@@ -65,3 +65,11 @@ def test_extensions_require(tmp_path, capsys):
     with pytest.raises(SystemExit):
         main(["extensions", str(tmp_path), "--require", "nope"])
     assert "missing federated extensions" in capsys.readouterr().err
+
+
+def test_extensions_no_site(tmp_path, capsys):
+    from jl_forge.cli import main
+
+    with pytest.raises(SystemExit):
+        main(["extensions", str(tmp_path)])
+    assert "no JupyterLite site" in capsys.readouterr().err
